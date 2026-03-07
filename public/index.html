@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chessground Remote Board</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessground@8.3.10/assets/chessground.base.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessground@8.3.10/assets/chessground.brown.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessground@8.3.10/assets/chessground.cburnett.css">
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #1a1a2e;
+      font-family: system-ui, -apple-system, sans-serif;
+      color: #eee;
+    }
+    h1 {
+      margin-bottom: 8px;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .status {
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 16px;
+    }
+    .board-wrap {
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .board-wrap.cg-wrap {
+      width: min(90vmin, 480px);
+      height: min(90vmin, 480px);
+    }
+  </style>
+</head>
+<body>
+  <h1>Chessground Remote Board</h1>
+  <p class="status" id="status">Connecting…</p>
+  <div class="board-wrap" id="board"></div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "chessground": "https://cdn.jsdelivr.net/npm/chessground@8.3.10/chessground.js"
+    }
+  }
+  </script>
+  <script type="module">
+    import { Chessground } from 'chessground';
+
+    const boardEl = document.getElementById('board');
+    const statusEl = document.getElementById('status');
+
+    let lastStatus = null;
+
+    function updateStatusText(status) {
+      if (!status) {
+        statusEl.textContent = 'Connected. Waiting for game state…';
+        return;
+      }
+      let text = `Turn: ${status.turn}.`;
+      if (status.isCheckmate) text += ' Checkmate.';
+      else if (status.isDraw) text += ' Draw.';
+      else if (status.inCheck) text += ' Check.';
+      statusEl.textContent = text;
+    }
+
+    const ground = Chessground(boardEl, {
+      coordinates: true,
+      animation: { duration: 200 },
+      movable: {
+        free: false,
+        dests: new Map(),
+        color: 'white',
+        events: {
+          after: onUserMove,
+        },
+      },
+    });
+
+    function applyStatus(status) {
+      lastStatus = status;
+      const destEntries = Object.entries(status.dests || {});
+      const destsMap = new Map(destEntries.map(([from, tos]) => [from, tos]));
+
+      ground.set({
+        fen: status.fen,
+        movable: {
+          free: false,
+          dests: destsMap,
+          color: status.turn === 'white' ? 'white' : 'black',
+          events: {
+            after: onUserMove,
+          },
+        },
+      });
+
+      updateStatusText(status);
+    }
+
+    async function onUserMove(orig, dest) {
+      const previousStatus = lastStatus;
+
+      try {
+        const res = await fetch('/api/move', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: orig, to: dest }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          // Revert the move if illegal or game is over
+          if (previousStatus) {
+            ground.set({ fen: previousStatus.fen });
+            applyStatus(previousStatus);
+          }
+          statusEl.textContent = data.error || 'Move rejected by server.';
+          return;
+        }
+
+        if (data.status) {
+          applyStatus(data.status);
+        }
+      } catch (err) {
+        if (previousStatus) {
+          ground.set({ fen: previousStatus.fen });
+          applyStatus(previousStatus);
+        }
+        statusEl.textContent = 'Network error, move reverted.';
+      }
+    }
+
+    async function loadInitialState() {
+      try {
+        const res = await fetch('/api/state');
+        const data = await res.json();
+        if (data && data.status) {
+          applyStatus(data.status);
+        }
+      } catch (err) {
+        console.warn('Failed to load initial state', err);
+      }
+    }
+
+    function connect() {
+      const ev = new EventSource('/api/stream');
+      ev.onopen = () => {
+        statusEl.textContent = 'Connected. Use the local HTTP API to control the board (see terminal for examples).';
+      };
+      ev.onerror = () => {
+        statusEl.textContent = 'Connection lost. Reconnecting in 3 seconds…';
+        ev.close();
+        setTimeout(connect, 3000);
+      };
+      ev.onmessage = (e) => {
+        try {
+          const cmd = JSON.parse(e.data);
+          if (cmd.type === 'setFen') {
+            if (cmd.status) {
+              applyStatus(cmd.status);
+            } else {
+              ground.set({ fen: cmd.fen });
+            }
+          } else if (cmd.type === 'select') {
+            ground.selectSquare(cmd.key);
+          } else if (cmd.type === 'flip') {
+            ground.toggleOrientation();
+          }
+        } catch (err) {
+          console.warn('Unknown command', e.data, err);
+        }
+      };
+    }
+
+    loadInitialState();
+    connect();
+  </script>
+</body>
+</html>
