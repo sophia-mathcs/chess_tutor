@@ -29,11 +29,6 @@
             <span>Engine</span>
           </label>
 
-          <label class="control">
-            <input type="checkbox" id="toggle-coords" checked>
-            <span>Coordinates</span>
-          </label>
-
           <div class="control">
             <button class="control-btn" id="flip-board-btn"></button>
             <span>Flip Board</span>
@@ -80,7 +75,43 @@
 
       <p class="status" id="status">Connecting…</p>
 
-      <div class="board-wrap" id="board"></div>
+      <div class="board-container">
+
+        <!-- BOARD + CLOCKS + EVAL BAR -->
+        <div class="board-column">
+
+          <!-- OPPONENT CLOCK -->
+          <div class="clock clock-top">
+            <span id="clock-black">05:00</span>
+          </div>
+
+          <!-- BOARD ROW -->
+          <div class="board-row">
+
+            <div class="eval-bar" id="eval-bar">
+              <div class="eval-fill" id="eval-fill"></div>
+            </div>
+
+            <div class="board-wrap" id="board"></div>
+
+          </div>
+
+          <!-- PLAYER CLOCK -->
+          <div class="clock clock-bottom">
+            <span id="clock-white">05:00</span>
+          </div>
+
+          <!-- FEN DISPLAY -->
+          <div class="fen-panel">
+            <div class="fen-label">FEN</div>
+            <div class="fen-value" id="fen-display">
+              rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR
+            </div>
+          </div>
+
+        </div>
+
+      </div>
 
     </div>
 
@@ -247,6 +278,69 @@
         }
       };
     }
+
+    // *** FEN ***
+    /*
+    document.getElementById("fen-display").textContent = game.fen()
+
+    // *** Eval Bar Logic ***
+    const engineToggle = document.getElementById("toggle-engine")
+    const evalBar = document.getElementById("eval-bar")
+
+    engineToggle.addEventListener("change", () => {
+
+      if (engineToggle.checked) {
+        evalBar.classList.remove("hidden")
+      } else {
+        evalBar.classList.add("hidden")
+      }
+
+    })
+
+    function updateEvalBar(cp) {
+      // clamp extreme values
+      const MAX_CP = 1000
+      cp = Math.max(-MAX_CP, Math.min(MAX_CP, cp))
+
+      // convert centipawns → percentage
+      const pct = 50 + (cp / MAX_CP) * 50
+
+      const fill = document.getElementById("eval-fill")
+
+      fill.style.height = pct + "%"
+    }
+
+    /*
+    async function fetchEngineEval() {
+      try {
+        const res = await fetch('/api/engine-eval');
+        const data = await res.json();
+        if (data && data.info) {
+          const info = data.info;
+        }
+      } catch (err) {
+        console.warn('Failed to fetch engine eval', err);
+      }
+      if (res.includes("score cp")) {
+
+        const match = res.match(/score cp (-?\d+)/)
+
+        if (match) {
+          const cp = parseInt(match[1])
+          updateEvalBar(cp)
+        }
+      } else if (res.includes("score mate")) {
+        const match = res.match(/score mate (-?\d+)/)
+
+        if (match) {
+          const mateIn = parseInt(match[1])
+          const cp = mateIn > 0 ? 1000 : -1000
+          updateEvalBar(cp)
+        }
+      }
+    }*/
+
+
 
     loadInitialState();
     connect();
