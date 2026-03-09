@@ -1,28 +1,183 @@
 body {
-    margin: 0;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: #1a1a2e;
-    font-family: system-ui, -apple-system, sans-serif;
-    color: #eee;
+  margin: 0;
+  min-height: 100vh;
+  background: #1a1a2e;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #eee;
 }
+
 h1 {
-    margin-bottom: 8px;
-    font-size: 1.25rem;
-    font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 1.25rem;
+  font-weight: 600;
 }
+
 .status {
-    font-size: 0.85rem;
-    color: #888;
-    margin-bottom: 16px;
+  font-size: 0.85rem;
+  color: #aaa;
+  margin-bottom: 16px;
 }
+
+/* MAIN LAYOUT */
+
+.layout {
+  display: flex;
+  height: 100vh;
+}
+
+/* LEFT MENU */
+
+.menu {
+  width: 260px;
+  padding: 20px;
+  background: #111827;
+  border-right: 1px solid #333;
+}
+
+.menu h2 {
+  margin-top: 0;
+}
+
+.menu-section {
+  margin-bottom: 20px;
+}
+
+.menu-section label {
+  display: block;
+  margin: 6px 0;
+}
+
+.menu select{
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px;
+  background: #1f2937;
+  color: #eee;
+  border: 1px solid #333;
+}
+
+.menu-section {
+  margin-bottom: 20px;
+}
+
+.menu-section h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+/* container */
+.menu-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* each row */
+.control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+/* checkbox alignment */
+.control input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+/* small action button */
+.control-btn {
+  padding: 5px 5px;
+  font-size: 12px;
+  background: #ffffff;
+  color: #eee;
+  border: 1px solid #6a6a6a;
+  cursor: pointer;
+}
+
+.control-btn:hover {
+  background: #4b5563;
+}
+
+.menu .button-newgame{
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px;
+  background: #1f2937;
+  color: #eee;
+  border: 1px solid #333;
+}
+
+.menu .button-newgame:hover {
+  background: #4b5563;
+}
+
+/* BOARD AREA */
+
+.board-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
 .board-wrap {
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
 }
+
 .board-wrap.cg-wrap {
-    width: min(90vmin, 480px);
-    height: min(90vmin, 480px);
+  width: min(90vmin, 520px);
+  height: min(90vmin, 520px);
+}
+
+/* ENGINE PANEL */
+
+.engine-panel {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #333;
+  background: #111827;
+}
+
+/* ENGINE OUTPUT (TOP HALF) */
+
+.engine-output {
+  flex: 1;
+  padding: 16px;
+  border-bottom: 1px solid #333;
+}
+
+.engine-output h3 {
+  margin-top: 0;
+}
+
+.engine-info {
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+}
+
+.engine-pv {
+  font-size: 0.85rem;
+  color: #bbb;
+  line-height: 1.4;
+}
+
+/* HINT PANEL (BOTTOM HALF) */
+
+.hint-panel {
+  flex: 1;
+  padding: 16px;
+}
+
+.hint-panel h3 {
+  margin-top: 0;
+}
+
+#hint-text {
+  font-size: 0.9rem;
+  color: #ccc;
 }

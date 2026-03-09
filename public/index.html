@@ -11,9 +11,106 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <h1>Chessground Remote Board</h1>
-  <p class="status" id="status">Connecting…</p>
-  <div class="board-wrap" id="board"></div>
+  <div class="layout">
+
+    <!-- LEFT MENU -->
+    <div class="menu">
+
+      <h2>Menu</h2>
+
+      <div class="menu-section">
+
+        <h3>Board Controls</h3>
+
+        <div class="menu-controls">
+
+          <label class="control">
+            <input type="checkbox" id="toggle-engine">
+            <span>Engine</span>
+          </label>
+
+          <label class="control">
+            <input type="checkbox" id="toggle-coords" checked>
+            <span>Coordinates</span>
+          </label>
+
+          <div class="control">
+            <button class="control-btn" id="flip-board-btn"></button>
+            <span>Flip Board</span>
+          </div>
+
+        </div>
+
+      </div>
+
+      <hr>
+
+      <div class="menu-section">
+        <h3>New Game</h3>
+
+        <label>
+          Clock Time
+          <select id="clock-select">
+            <option value="0">No Clock</option>
+            <option value="60">1 min</option>
+            <option value="180">3 min</option>
+            <option value="300">5 min</option>
+            <option value="600">10 min</option>
+          </select>
+        </label>
+
+        <label>
+          Color
+          <select id="color-select">
+            <option value="white">White</option>
+            <option value="black">Black</option>
+            <option value="random">Random</option>
+          </select>
+        </label>
+
+        <button class="button-newgame" id="new-game-btn">Start New Game</button>
+      </div>
+
+    </div>
+
+    <!-- BOARD AREA -->
+    <div class="board-area">
+
+      <h1>Chessground Remote Board</h1>
+
+      <p class="status" id="status">Connecting…</p>
+
+      <div class="board-wrap" id="board"></div>
+
+    </div>
+
+    <!-- ENGINE PANEL -->
+    <div class="engine-panel">
+
+      <div class="engine-output">
+        <h3>Engine</h3>
+
+        <div class="engine-info">
+          <div>Depth: <span id="engine-depth">-</span></div>
+          <div>Eval: <span id="engine-eval">-</span></div>
+          <div>Best Move: <span id="engine-bestmove">-</span></div>
+        </div>
+
+        <div class="engine-pv" id="engine-pv">
+          Waiting for engine...
+        </div>
+      </div>
+
+      <div class="hint-panel">
+        <h3>Hints</h3>
+        <div id="hint-text">
+          Engine hints will appear here.
+        </div>
+      </div>
+
+    </div>
+
+  </div>
 
   <script type="importmap">
   {
