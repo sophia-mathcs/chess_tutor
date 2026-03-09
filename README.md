@@ -1,0 +1,1 @@
+install chess, chessgrounds, express
