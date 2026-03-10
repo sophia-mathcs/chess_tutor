@@ -153,11 +153,23 @@
   <script type="module">
     import { Chessground } from 'chessground';
 
+    // Get references to DOM elements
     const boardEl = document.getElementById('board');
     const statusEl = document.getElementById('status');
 
+    const fenDisplay = document.getElementById('fen-display')
+
+    const evalFill = document.getElementById('eval-fill')
+
+    const engineDepthEl = document.getElementById('engine-depth')
+    const engineEvalEl = document.getElementById('engine-eval')
+    const engineBestMoveEl = document.getElementById('engine-bestmove')
+    const enginePvEl = document.getElementById('engine-pv')
+
+
     let lastStatus = null;
 
+    // Helper function to update the status text based on game state
     function updateStatusText(status) {
       if (!status) {
         statusEl.textContent = 'Connected. Waiting for game state…';
@@ -170,6 +182,7 @@
       statusEl.textContent = text;
     }
 
+    // Initialize Chessground with basic configuration
     const ground = Chessground(boardEl, {
       coordinates: true,
       animation: { duration: 200 },
@@ -183,6 +196,7 @@
       },
     });
 
+    // Function to apply a new game status to the board
     function applyStatus(status) {
       lastStatus = status;
       const destEntries = Object.entries(status.dests || {});
@@ -200,14 +214,19 @@
         },
       });
 
+      // Update status text
       updateStatusText(status);
+
+      // Update FEN display
+      if (fenDisplay) fenDisplay.textContent = status.fen;
     }
 
+    // Handler for user moves on the board
     async function onUserMove(orig, dest) {
       const previousStatus = lastStatus;
 
       try {
-        const res = await fetch('/api/move', {
+        const res = await fetch('/api/board/move', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ from: orig, to: dest }),
@@ -237,9 +256,10 @@
       }
     }
 
+    // Load the initial game state from the server when the page loads
     async function loadInitialState() {
       try {
-        const res = await fetch('/api/state');
+        const res = await fetch('/api/board/state');
         const data = await res.json();
         if (data && data.status) {
           applyStatus(data.status);
@@ -249,8 +269,41 @@
       }
     }
 
+    // Function to update the evaluation bar based on centipawn score
+    function updateEvalBar(cp) {
+
+      const MAX_CP = 1000
+
+      cp = Math.max(-MAX_CP, Math.min(MAX_CP, cp))
+
+      const pct = 50 + (cp / MAX_CP) * 50
+
+      evalFill.style.height = pct + "%"
+    }
+
+    // Function to draw an arrow on the board indicating the engine's best move
+    function drawBestMoveArrow(move) {
+
+      if (!move || move.length < 4) return
+
+      const from = move.slice(0,2)
+      const to = move.slice(2,4)
+
+      ground.set({
+        drawable: {
+          visible: true,
+          autoShapes: [{
+            orig: from,
+            dest: to,
+            brush: 'green'
+          }]
+        }
+      })
+    }
+
+    // Establish a connection to the server for real-time updates
     function connect() {
-      const ev = new EventSource('/api/stream');
+      const ev = new EventSource('/api/general/stream');
       ev.onopen = () => {
         statusEl.textContent = 'Connected. Use the local HTTP API to control the board (see terminal for examples).';
       };
@@ -261,6 +314,9 @@
       };
       ev.onmessage = (e) => {
         try {
+          // Handle incoming commands from the server
+
+          // ==== BOARD CONTROL COMMANDS ====
           const cmd = JSON.parse(e.data);
           if (cmd.type === 'setFen') {
             if (cmd.status) {
@@ -273,72 +329,67 @@
           } else if (cmd.type === 'flip') {
             ground.toggleOrientation();
           }
+          
+          // ==== ENGINE UPDATE COMMANDS ====
+          else if (cmd.type === 'engineUpdate') {
+
+            const { evalScore, depth, pv } = cmd
+
+            if (evalScore !== undefined) {
+              engineEvalEl.textContent = evalScore
+              updateEvalBar(evalScore)
+            }
+
+            if (depth !== undefined) {
+              engineDepthEl.textContent = depth
+            }
+
+            if (pv && pv.length) {
+              enginePvEl.textContent = pv.join(' ')
+            }
+
+          }
+
+          else if (cmd.type === 'engineBestMove') {
+
+            const move = cmd.move
+
+            engineBestMoveEl.textContent = move
+
+            drawBestMoveArrow(move)
+
+          }
         } catch (err) {
           console.warn('Unknown command', e.data, err);
         }
       };
     }
 
-    // *** FEN ***
-    /*
-    document.getElementById("fen-display").textContent = game.fen()
-
-    // *** Eval Bar Logic ***
     const engineToggle = document.getElementById("toggle-engine")
     const evalBar = document.getElementById("eval-bar")
 
-    engineToggle.addEventListener("change", () => {
+    // Handler for toggling the engine on and off
+    engineToggle.addEventListener("change", async () => {
 
       if (engineToggle.checked) {
+
         evalBar.classList.remove("hidden")
+
+        await fetch('/api/engine/start', {
+          method: 'POST'
+        })
+
       } else {
+
         evalBar.classList.add("hidden")
+
+        await fetch('/api/engine/stop', {
+          method: 'POST'
+        })
+
       }
 
     })
-
-    function updateEvalBar(cp) {
-      // clamp extreme values
-      const MAX_CP = 1000
-      cp = Math.max(-MAX_CP, Math.min(MAX_CP, cp))
-
-      // convert centipawns → percentage
-      const pct = 50 + (cp / MAX_CP) * 50
-
-      const fill = document.getElementById("eval-fill")
-
-      fill.style.height = pct + "%"
-    }
-
-    /*
-    async function fetchEngineEval() {
-      try {
-        const res = await fetch('/api/engine-eval');
-        const data = await res.json();
-        if (data && data.info) {
-          const info = data.info;
-        }
-      } catch (err) {
-        console.warn('Failed to fetch engine eval', err);
-      }
-      if (res.includes("score cp")) {
-
-        const match = res.match(/score cp (-?\d+)/)
-
-        if (match) {
-          const cp = parseInt(match[1])
-          updateEvalBar(cp)
-        }
-      } else if (res.includes("score mate")) {
-        const match = res.match(/score mate (-?\d+)/)
-
-        if (match) {
-          const mateIn = parseInt(match[1])
-          const cp = mateIn > 0 ? 1000 : -1000
-          updateEvalBar(cp)
-        }
-      }
-    }*/
 
 
 
