@@ -246,7 +246,13 @@
 
         if (data.status) {
           applyStatus(data.status);
+          
+          // If the engine is currently enabled, restart it to analyze the new position
+          if (engineToggle.checked) {
+            await fetch('/api/engine/start', { method: 'POST' })
+          }
         }
+
       } catch (err) {
         if (previousStatus) {
           ground.set({ fen: previousStatus.fen });
@@ -333,19 +339,23 @@
           // ==== ENGINE UPDATE COMMANDS ====
           else if (cmd.type === 'engineUpdate') {
 
-            const { evalScore, depth, pv } = cmd
+            const lines = cmd.lines
 
-            if (evalScore !== undefined) {
-              engineEvalEl.textContent = evalScore
-              updateEvalBar(evalScore)
+            if (!lines || !lines.length) return
+
+            const best = lines[0]
+
+            if (best.eval !== undefined) {
+              engineEvalEl.textContent = best.eval
+              updateEvalBar(best.eval)
             }
 
-            if (depth !== undefined) {
-              engineDepthEl.textContent = depth
+            if (best.depth !== undefined) {
+              engineDepthEl.textContent = best.depth
             }
 
-            if (pv && pv.length) {
-              enginePvEl.textContent = pv.join(' ')
+            if (best.pv && best.pv.length) {
+              enginePvEl.textContent = best.pv.join(' ')
             }
 
           }
@@ -359,6 +369,17 @@
             drawBestMoveArrow(move)
 
           }
+
+          else if (cmd.type === 'engineStop') {
+
+            ground.set({
+              drawable: {
+                autoShapes: []
+              }
+            })
+
+          }
+
         } catch (err) {
           console.warn('Unknown command', e.data, err);
         }
@@ -374,6 +395,10 @@
       if (engineToggle.checked) {
 
         evalBar.classList.remove("hidden")
+
+        enginePvEl.textContent = "Analyzing..."
+        engineEvalEl.textContent = "-"
+        engineDepthEl.textContent = "-"
 
         await fetch('/api/engine/start', {
           method: 'POST'

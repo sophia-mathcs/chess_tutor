@@ -69,8 +69,7 @@ exports.stopMove = (req, res) => {
 // Request best move from engine
 // GET /api/engine/best-move
 exports.bestMove = async (req, res) => {
-  const fen = chessGame.getGame().fen()
-  const result = await engineService.getBestMove(fen)
+  const result = await engineService.getBestMove()
   res.json({ ok: true, result })
 }
 

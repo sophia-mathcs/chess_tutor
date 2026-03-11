@@ -1,169 +1,115 @@
-const path = require('path')
-const { Worker } = require('worker_threads')
 const sse = require('./sse_service')
 
-let engine = null
+const ENGINE_URL = 'http://localhost:8000/engine'
 
 let state = {
-  running: false,
   depth: 15,
   multipv: 1,
-  skill: 20,
-  lastEval: null,
-  bestMove: null,
-  pv: [],
-  engineName: 'Stockfish'
+  running: false
 }
 
-function getEngine() {
+async function post(endpoint, body = {}) {
 
-  if (!engine) {
+  const res = await fetch(`${ENGINE_URL}${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
 
-    const enginePath = path.join(
-      __dirname,
-      '../../engines/stockfish-18-lite-single/stockfish-18-lite-single.js'
-    )
-
-    engine = new Worker(enginePath)
-
-    engine.on('message', handleEngineMessage)
-
-    engine.postMessage('uci')
-    engine.postMessage('isready')
-  }
-
-  return engine
+  return res.json()
 }
 
-function handleEngineMessage(line) {
+async function get(endpoint) {
 
-  if (typeof line !== 'string') return
-
-  // -------- evaluation + PV --------
-
-  if (line.includes('score cp')) {
-
-    const evalMatch = line.match(/score cp (-?\d+)/)
-    const depthMatch = line.match(/depth (\d+)/)
-    const pvMatch = line.match(/ pv (.+)/)
-
-    if (evalMatch) state.lastEval = parseInt(evalMatch[1])
-    if (depthMatch) state.depth = parseInt(depthMatch[1])
-
-    if (pvMatch) {
-      state.pv = pvMatch[1].split(' ')
-    }
-
-    sse.broadcast({
-      type: 'engineUpdate',
-      evalScore: state.lastEval,
-      depth: state.depth,
-      pv: state.pv
-    })
-  }
-
-  // -------- best move --------
-
-  if (line.includes('bestmove')) {
-
-    const match = line.match(/bestmove (\S+)/)
-
-    if (match) {
-
-      state.bestMove = match[1]
-
-      sse.broadcast({
-        type: 'engineBestMove',
-        move: state.bestMove
-      })
-    }
-  }
+  const res = await fetch(`${ENGINE_URL}${endpoint}`)
+  return res.json()
 }
+
+
+// ---------- lifecycle ----------
+
+exports.init = () => post('/init')
+
+exports.quit = () => post('/quit')
+
+
+// ---------- analysis ----------
 
 exports.startAnalysis = (fen) => {
 
-  const e = getEngine()
-
-  e.postMessage('ucinewgame')
-  e.postMessage(`position fen ${fen}`)
-  e.postMessage(`go depth ${state.depth}`)
-
   state.running = true
+
+  return post('/start', { fen })
 }
 
-exports.stopAnalysis = () => {
-
-  if (!engine) return
-
-  engine.postMessage('stop')
+exports.stopAnalysis = async () => {
 
   state.running = false
+  
+  await post('/stop')
+
+  if (pollInterval) {
+    clearInterval(pollInterval)
+    pollInterval = null
+  }
+
 }
 
-exports.stopCurrentMove = () => {
+exports.stopCurrentMove = () => post('/stop-move')
 
-  if (!engine) return
 
-  engine.postMessage('stop')
-}
+// ---------- position ----------
 
-exports.setPosition = (fen) => {
+exports.setPosition = (fen) => post('/set-position', { fen })
 
-  const e = getEngine()
 
-  e.postMessage(`position fen ${fen}`)
-}
+// ---------- configuration ----------
 
 exports.setDepth = (depth) => {
 
   state.depth = depth
+
+  return post('/depth', { depth })
 }
 
 exports.setMultiPV = (value) => {
 
-  const e = getEngine()
-
   state.multipv = value
 
-  e.postMessage(`setoption name MultiPV value ${value}`)
+  return post('/multipv', { value })
 }
 
-exports.setSkillLevel = (level) => {
+exports.setSkillLevel = (level) => post('/skill-level', { level })
 
-  const e = getEngine()
 
-  state.skill = level
+// ---------- queries ----------
 
-  e.postMessage(`setoption name Skill Level value ${level}`)
-}
-
-exports.getBestMove = (fen) => {
-
-  return new Promise(resolve => {
-
-    const e = getEngine()
-
-    e.postMessage(`position fen ${fen}`)
-    e.postMessage(`go depth ${state.depth}`)
-
-    setTimeout(() => {
-
-      resolve({
-        bestMove: state.bestMove,
-        eval: state.lastEval,
-        pv: state.pv
-      })
-
-    }, 500)
-
-  })
-}
+exports.getBestMove = () => get('/best-move')
 
 exports.getState = () => state
 
-exports.getInfo = () => ({
-  name: state.engineName,
-  depth: state.depth,
-  multipv: state.multipv,
-  skill: state.skill
-})
+exports.getInfo = () => get('/info')
+
+
+
+// ---------- real-time updates ----------
+let lastHash = ''
+
+pollInterval = setInterval(async () => {
+
+  const updates = await get('/updates')
+
+  const hash = JSON.stringify(updates.lines)
+
+  if (updates.lines.length > 0 && hash !== lastHash) {
+
+    lastHash = hash
+
+    sse.broadcast({
+      type: 'engineUpdate',
+      lines: updates.lines
+    })
+
+  }
+
+}, 200)

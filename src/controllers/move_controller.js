@@ -1,6 +1,7 @@
 const chessGame = require('../game/chess_game');
 const buildStatus = require('../game/status_builder');
 const sse = require('../services/sse_service');
+const engineService = require('../services/engine_service')
 
 exports.move = (req, res) => {
   const { from, to } = req.body || {};
@@ -29,6 +30,15 @@ exports.move = (req, res) => {
   }
 
   const status = buildStatus(game);
+
+  // If the engine is running, update its position to the new game state
+  const fen = status.fen
+
+  engineService.setPosition(fen)
+
+  if (engineService.getState().running) {
+    engineService.startAnalysis(fen)
+  }
 
   sse.broadcast({
     type: 'setFen',
