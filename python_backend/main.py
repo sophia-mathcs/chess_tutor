@@ -1,9 +1,19 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from fastapi.responses import StreamingResponse
+
 from engine import engine_manager
+
+import json
+import time
+
 
 app = FastAPI()
 
+
+# =============================
+# Request Models
+# =============================
 
 class FenRequest(BaseModel):
     fen: str
@@ -21,49 +31,31 @@ class SkillRequest(BaseModel):
     level: int
 
 
-# ---------- lifecycle ----------
-
-@app.post("/engine/init")
-def init():
-    return engine_manager.init()
-
-
-@app.post("/engine/quit")
-def quit():
-    return engine_manager.quit()
-
-
-# ---------- analysis ----------
+# =============================
+# Engine Control
+# =============================
 
 @app.post("/engine/start")
 def start(req: FenRequest):
 
     engine_manager.set_position(req.fen)
 
-    return engine_manager.start_analysis()
+    engine_manager.start()
+
+    return {"ok": True}
 
 
 @app.post("/engine/stop")
 def stop():
-    return engine_manager.stop()
+
+    engine_manager.stop()
+
+    return {"ok": True}
 
 
-@app.post("/engine/stop-move")
-def stop_move():
-    return engine_manager.stop_move()
-
-
-# ---------- updates ----------
-
-@app.get("/engine/updates")
-def updates():
-
-    return {
-        "lines": engine_manager.get_updates()
-    }
-
-
-# ---------- position ----------
+# =============================
+# Position Updates
+# =============================
 
 @app.post("/engine/set-position")
 def set_position(req: FenRequest):
@@ -73,7 +65,9 @@ def set_position(req: FenRequest):
     return {"ok": True}
 
 
-# ---------- configuration ----------
+# =============================
+# Engine Configuration
+# =============================
 
 @app.post("/engine/depth")
 def depth(req: DepthRequest):
@@ -94,12 +88,16 @@ def multipv(req: MultiPVRequest):
 @app.post("/engine/skill-level")
 def skill(req: SkillRequest):
 
-    engine_manager.set_skill(req.level)
+    engine_manager.engine.configure({
+        "Skill Level": req.level
+    })
 
     return {"ok": True}
 
 
-# ---------- queries ----------
+# =============================
+# Queries
+# =============================
 
 @app.get("/engine/best-move")
 def best_move():
@@ -109,13 +107,55 @@ def best_move():
     }
 
 
-@app.get("/engine/state")
-def state():
+@app.get("/engine/updates")
+def updates():
 
-    return engine_manager.state()
+    return {
+        "lines": engine_manager.get_updates()
+    }
 
 
-@app.get("/engine/info")
-def info():
+# =============================
+# Streaming (SSE)
+# =============================
 
-    return engine_manager.info()
+@app.get("/engine/stream")
+def engine_stream():
+
+    def event_stream():
+
+        last = None
+
+        while True:
+
+            lines = engine_manager.get_updates()
+
+            if lines != last:
+
+                payload = json.dumps({
+                    "type": "engineUpdate",
+                    "lines": lines
+                })
+
+                yield f"data: {payload}\n\n"
+
+                last = lines
+
+            time.sleep(0.15)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream"
+    )
+
+
+# =============================
+# Shutdown
+# =============================
+
+@app.post("/engine/quit")
+def quit_engine():
+
+    engine_manager.quit()
+
+    return {"ok": True}

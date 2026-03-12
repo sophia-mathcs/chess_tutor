@@ -93,23 +93,70 @@ exports.getInfo = () => get('/info')
 
 
 // ---------- real-time updates ----------
-let lastHash = ''
+let running = false
 
-pollInterval = setInterval(async () => {
+exports.connectStream = async () => {
 
-  const updates = await get('/updates')
+  if (running) return
+  running = true
 
-  const hash = JSON.stringify(updates.lines)
+  while (running) {
 
-  if (updates.lines.length > 0 && hash !== lastHash) {
+    try {
 
-    lastHash = hash
+      console.log("Connecting to Python engine stream...")
 
-    sse.broadcast({
-      type: 'engineUpdate',
-      lines: updates.lines
-    })
+      const res = await fetch('http://localhost:8000/engine/stream')
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+
+      let buffer = ""
+
+      while (true) {
+
+        const { done, value } = await reader.read()
+
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+
+        const parts = buffer.split("\n\n")
+
+        buffer = parts.pop()
+
+        for (const part of parts) {
+
+          const line = part.trim()
+
+          if (!line.startsWith("data:")) continue
+
+          const json = line.slice(5).trim()
+
+          try {
+
+            const data = JSON.parse(json)
+
+            sse.broadcast(data)
+
+          } catch (err) {
+
+            console.warn("Bad engine stream message", json)
+
+          }
+
+        }
+
+      }
+
+    } catch (err) {
+
+      console.log("Engine stream disconnected:", err.message)
+
+    }
+
+    console.log("Reconnecting to engine stream in 2s...")
+    await new Promise(r => setTimeout(r, 2000))
 
   }
-
-}, 200)
+}

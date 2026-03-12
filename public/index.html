@@ -249,8 +249,14 @@
           
           // If the engine is currently enabled, restart it to analyze the new position
           if (engineToggle.checked) {
-            await fetch('/api/engine/start', { method: 'POST' })
+            await fetch('/api/engine/set-position', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fen: data.status.fen })
+            })
+
           }
+
         }
 
       } catch (err) {
@@ -285,6 +291,8 @@
       const pct = 50 + (cp / MAX_CP) * 50
 
       evalFill.style.height = pct + "%"
+      evalFill.style.bottom = "0"
+
     }
 
     // Function to draw an arrow on the board indicating the engine's best move
@@ -346,8 +354,18 @@
             const best = lines[0]
 
             if (best.eval !== undefined) {
-              engineEvalEl.textContent = best.eval
-              updateEvalBar(best.eval)
+
+              let cp = best.eval
+
+              // Convert relative eval to white perspective
+              if (lastStatus && lastStatus.turn === "black") {
+                cp = -cp
+              }
+
+              engineEvalEl.textContent = (cp / 100).toFixed(2)
+
+              updateEvalBar(cp)
+
             }
 
             if (best.depth !== undefined) {
@@ -356,8 +374,8 @@
 
             if (best.pv && best.pv.length) {
               enginePvEl.textContent = best.pv.join(' ')
+              drawBestMoveArrow(best.pv[0])
             }
-
           }
 
           else if (cmd.type === 'engineBestMove') {
@@ -401,7 +419,9 @@
         engineDepthEl.textContent = "-"
 
         await fetch('/api/engine/start', {
-          method: 'POST'
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fen: lastStatus.fen })
         })
 
       } else {

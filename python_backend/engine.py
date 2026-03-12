@@ -1,6 +1,7 @@
 import chess
 import chess.engine
 import threading
+import time
 
 ENGINE_PATH = "../engines/stockfish/stockfish-macos-m1-apple-silicon"
 
@@ -8,168 +9,170 @@ class EngineManager:
 
     def __init__(self):
 
-        self.engine = None
+        self.engine = chess.engine.SimpleEngine.popen_uci(ENGINE_PATH)
+
         self.board = chess.Board()
 
         self.depth = 15
         self.multipv = 1
-        self.skill = 20
 
-        self.running = False
-
-        self.lines = {}
-        self.latest_lines = []
-        self.analysis_thread = None
-
-    # ---------- lifecycle ----------
-
-    def init(self):
-
-        if not self.engine:
-            self.engine = chess.engine.SimpleEngine.popen_uci(ENGINE_PATH)
-
-        return {"status": "initialized"}
-
-    def quit(self):
-
-        self.running = False
-
-        if self.engine:
-            self.engine.quit()
-            self.engine = None
-
-        return {"status": "quit"}
-
-    # ---------- configuration ----------
-
-    def set_position(self, fen):
-        self.board = chess.Board(fen)
-        self.lines = {}
-
-    def set_depth(self, depth):
-        self.depth = depth
-
-    def set_multipv(self, value):
-        self.multipv = value
-
-        if self.engine:
-            self.engine.configure({"MultiPV": value})
-
-    def set_skill(self, level):
-        self.skill = level
-
-        if self.engine:
-            self.engine.configure({"Skill Level": level})
-
-    # ---------- analysis loop ----------
-
-    def _analysis_loop(self):
+        self.enabled = False
 
         self.lines = {}
 
-        with self.engine.analysis(
-            self.board,
-            chess.engine.Limit(depth=self.depth),
-            multipv=self.multipv
-        ) as analysis:
+        self.lock = threading.Lock()
 
-            for info in analysis:
+        self.last_fen = None
 
-                if not self.running:
-                    break
-
-                if "pv" not in info:
-                    continue
-
-                pv_index = info.get("multipv", 1)
-
-                pv = [m.uci() for m in info["pv"]]
-
-                score = None
-
-                if "score" in info:
-                    score = info["score"].relative.score(mate_score=10000)
-
-                line = {
-                    "multipv": pv_index,
-                    "depth": info.get("depth"),
-                    "eval": score,
-                    "pv": pv
-                }
-
-                # update the stable line
-                self.lines[pv_index] = line
-
-    def start_analysis(self):
-
-        if not self.engine:
-            self.init()
-
-        if self.running:
-            return {"status": "already running"}
-
-        self.running = True
-        self.latest_lines = []
-
-        self.analysis_thread = threading.Thread(
+        self.thread = threading.Thread(
             target=self._analysis_loop,
             daemon=True
         )
 
-        self.analysis_thread.start()
+        self.thread.start()
 
-        return {"status": "analysis started"}
+    # =================================
+    # Main analysis loop (runs forever)
+    # =================================
+
+    def _analysis_loop(self):
+
+        while True:
+
+            if not self.enabled:
+                time.sleep(0.1)
+                continue
+
+            try:
+
+                with self.lock:
+                    board = self.board.copy()
+                    depth = self.depth
+                    multipv = self.multipv
+
+                fen = board.fen()
+
+                # Skip redundant analysis
+                if fen == self.last_fen:
+                    time.sleep(0.15)
+                    continue
+
+                self.last_fen = fen
+
+                info = self.engine.analyse(
+                    board,
+                    chess.engine.Limit(depth=depth),
+                    multipv=multipv
+                )
+
+                if isinstance(info, dict):
+                    info = [info]
+
+                new_lines = {}
+
+                for i, line in enumerate(info):
+
+                    pv_moves = [m.uci() for m in line.get("pv", [])]
+
+                    score_obj = line.get("score")
+
+                    if score_obj:
+                        score = score_obj.relative.score(mate_score=10000)
+                    else:
+                        score = None
+
+                    new_lines[i + 1] = {
+                        "multipv": i + 1,
+                        "depth": depth,
+                        "eval": score,
+                        "pv": pv_moves
+                    }
+
+                with self.lock:
+                    self.lines = new_lines
+
+            except Exception as e:
+                print("Engine error:", e)
+
+            time.sleep(0.1)
+
+    # =================================
+    # Engine control
+    # =================================
+
+    def start(self):
+
+        self.enabled = True
 
     def stop(self):
 
-        self.running = False
+        self.enabled = False
 
-        return {"status": "stopped"}
+    # =================================
+    # Position control
+    # =================================
 
-    def stop_move(self):
+    def set_position(self, fen):
 
-        self.running = False
+        with self.lock:
 
-        return {"status": "move stopped"}
+            self.board = chess.Board(fen)
 
-    # ---------- queries ----------
+            self.lines = {}
+
+            self.last_fen = None
+
+    # =================================
+    # Engine configuration
+    # =================================
+
+    def set_depth(self, depth):
+
+        with self.lock:
+            self.depth = depth
+
+    def set_multipv(self, value):
+
+        with self.lock:
+            self.multipv = value
+
+        try:
+            self.engine.configure({"MultiPV": value})
+        except Exception as e:
+            print("MultiPV config error:", e)
+
+    # =================================
+    # Queries
+    # =================================
+
+    def get_updates(self):
+
+        with self.lock:
+            return [self.lines[k] for k in sorted(self.lines)]
 
     def best_move(self):
 
+        with self.lock:
+            board = self.board.copy()
+            depth = self.depth
+
         result = self.engine.play(
-            self.board,
-            chess.engine.Limit(depth=self.depth)
+            board,
+            chess.engine.Limit(depth=depth)
         )
 
         return result.move.uci()
 
-    def get_updates(self):
+    # =================================
+    # Shutdown
+    # =================================
 
-        if not self.lines:
-            return []
+    def quit(self):
 
-        # return sorted stable PV lines
-        ordered = [
-            self.lines[k]
-            for k in sorted(self.lines.keys())
-        ]
-
-        return ordered
-
-    def state(self):
-
-        return {
-            "running": self.running,
-            "depth": self.depth,
-            "multipv": self.multipv,
-            "fen": self.board.fen()
-        }
-
-    def info(self):
-
-        return {
-            "name": "Stockfish"
-        }
+        try:
+            self.engine.quit()
+        except Exception:
+            pass
 
 
 engine_manager = EngineManager()
