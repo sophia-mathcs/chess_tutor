@@ -348,35 +348,32 @@
           else if (cmd.type === 'engineUpdate') {
 
             const lines = cmd.lines
-
             if (!lines || !lines.length) return
 
             const best = lines[0]
 
-            if (best.eval !== undefined) {
+            let cp = best.eval_cp
+            let displayEval = "-"
 
-              let cp = best.eval
-
-              // Convert relative eval to white perspective
-              if (lastStatus && lastStatus.turn === "black") {
-                cp = -cp
-              }
-
-              engineEvalEl.textContent = (cp / 100).toFixed(2)
-
-              updateEvalBar(cp)
-
+            // Mate handling
+            if (best.mate_in != null) {
+                const sign = best.mate_in > 0 ? "" : "-"  // positive: White mates, negative: Black mates
+                displayEval = `${sign}#${Math.abs(best.mate_in)}`
+                cp = best.mate_in > 0 ? 10000 : -10000
+            } else if (cp != null) {
+                displayEval = (cp / 100).toFixed(2)
             }
 
-            if (best.depth !== undefined) {
-              engineDepthEl.textContent = best.depth
-            }
+            engineEvalEl.textContent = displayEval
+            updateEvalBar(cp || 0)
 
-            if (best.pv && best.pv.length) {
-              enginePvEl.textContent = best.pv.join(' ')
-              drawBestMoveArrow(best.pv[0])
-            }
-          }
+            // Depth
+            engineDepthEl.textContent = best.depth != null ? best.depth : "-"
+
+            // PV moves and best move arrow
+            enginePvEl.textContent = best.pv && best.pv.length ? best.pv.join(' ') : ""
+            if (best.pv && best.pv.length) drawBestMoveArrow(best.pv[0])
+        }
 
           else if (cmd.type === 'engineBestMove') {
 

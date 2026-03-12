@@ -71,20 +71,26 @@ class EngineManager:
                 new_lines = {}
 
                 for i, line in enumerate(info):
-
+                    # Extract principal variation moves
                     pv_moves = [m.uci() for m in line.get("pv", [])]
 
+                    # Extract score
                     score_obj = line.get("score")
+                    eval_cp = None   # centipawn evaluation
+                    mate_in = None   # moves to mate
 
                     if score_obj:
-                        score = score_obj.relative.score(mate_score=10000)
-                    else:
-                        score = None
+                        if score_obj.white() is not None:  # Use absolute score from White's perspective
+                            eval_cp = score_obj.white().score(mate_score=10000)
+                        if score_obj.white().mate is not None:
+                            mate_in = score_obj.white().mate()
+
 
                     new_lines[i + 1] = {
                         "multipv": i + 1,
-                        "depth": depth,
-                        "eval": score,
+                        "depth": line.get("depth"),
+                        "eval_cp": eval_cp,
+                        "mate_in": mate_in,
                         "pv": pv_moves
                     }
 
