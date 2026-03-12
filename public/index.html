@@ -409,11 +409,8 @@
 
     // Handler for toggling the engine on and off
     engineToggle.addEventListener("change", async () => {
-
       if (engineToggle.checked) {
-
         evalBar.classList.remove("hidden")
-
         enginePvEl.textContent = "Analyzing..."
         engineEvalEl.textContent = "-"
         engineDepthEl.textContent = "-"
@@ -425,15 +422,18 @@
         })
 
       } else {
-
         evalBar.classList.add("hidden")
+        enginePvEl.textContent = "-"
+        engineEvalEl.textContent = "-"
+        engineDepthEl.textContent = "-"
 
-        await fetch('/api/engine/stop', {
-          method: 'POST'
+        // Remove arrows
+        ground.set({
+          drawable: { autoShapes: [] }
         })
 
+        await fetch('/api/engine/stop', { method: 'POST' })
       }
-
     })
 
 

@@ -47,12 +47,6 @@ exports.stopAnalysis = async () => {
   state.running = false
   
   await post('/stop')
-
-  if (pollInterval) {
-    clearInterval(pollInterval)
-    pollInterval = null
-  }
-
 }
 
 exports.stopCurrentMove = () => post('/stop-move')
