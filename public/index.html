@@ -182,37 +182,64 @@
       statusEl.textContent = text;
     }
 
-    // Initialize Chessground with basic configuration
-    const ground = Chessground(boardEl, {
-      coordinates: true,
-      animation: { duration: 200 },
-      movable: {
-        free: false,
-        dests: new Map(),
-        color: 'white',
-        events: {
-          after: onUserMove,
+    // create a new Chessground instance with the given container and color orientation
+    function createBoard(container, color = 'white') {
+      ground = Chessground(container, {
+        coordinates: true,
+        orientation: color,
+        animation: { duration: 200 },
+        movable: {
+          free: false,
+          dests: new Map(),
+          color: color,
+          events: { after: onUserMove },
         },
-      },
-    });
+      });
+    }
+
+
+    // Initialize Chessground with basic configuration
+    let ground = null;
+    createBoard(boardEl);
+
+    // Define move event handlers for user interactions on the board
+    const movableEvents = { after: onUserMove };
 
     // Function to apply a new game status to the board
     function applyStatus(status) {
-      lastStatus = status;
-      const destEntries = Object.entries(status.dests || {});
-      const destsMap = new Map(destEntries.map(([from, tos]) => [from, tos]));
+      // Avoid re-applying the same status to prevent unnecessary updates and potential animation glitches
+      if (
+        lastStatus &&
+        lastStatus.fen === status.fen &&
+        lastStatus.turn === status.turn
+      ) {
+        return;
+      }
 
+      // Log the status being applied for debugging purposes
+      console.log("APPLY STATUS", {
+        fen: status.fen,
+        turn: status.turn,
+        destCount: Object.keys(status.dests || {}).length
+      })
+
+      lastStatus = status;
+
+      const destEntries = Object.entries(status.dests || {})
+      const destsMap = new Map(destEntries.map(([from, tos]) => [from, tos]))
+
+      // clear any square selection first
+      ground.set({ selected: undefined })
+
+      // Update the board position and legal moves based on the new status
       ground.set({
         fen: status.fen,
         movable: {
-          free: false,
           dests: destsMap,
-          color: status.turn === 'white' ? 'white' : 'black',
-          events: {
-            after: onUserMove,
-          },
-        },
-      });
+          color: status.turn,
+          movableEvents
+        }
+      })
 
       // Update status text
       updateStatusText(status);
@@ -223,6 +250,9 @@
 
     // Handler for user moves on the board
     async function onUserMove(orig, dest) {
+      // Log the attempted move for debugging purposes
+      console.log("USER MOVE", { from: orig, to: dest, fen: lastStatus?.fen })
+
       const previousStatus = lastStatus;
 
       try {
@@ -235,6 +265,9 @@
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok) {
+          // Log the error response for debugging purposes
+          console.log("MOVE REJECTED", data)
+
           // Revert the move if illegal or game is over
           if (previousStatus) {
             ground.set({ fen: previousStatus.fen });
@@ -243,22 +276,6 @@
           statusEl.textContent = data.error || 'Move rejected by server.';
           return;
         }
-
-        if (data.status) {
-          applyStatus(data.status);
-          
-          // If the engine is currently enabled, restart it to analyze the new position
-          if (engineToggle.checked) {
-            await fetch('/api/engine/set-position', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ fen: data.status.fen })
-            })
-
-          }
-
-        }
-
       } catch (err) {
         if (previousStatus) {
           ground.set({ fen: previousStatus.fen });
@@ -333,14 +350,24 @@
           // ==== BOARD CONTROL COMMANDS ====
           const cmd = JSON.parse(e.data);
           if (cmd.type === 'setFen') {
-            if (cmd.status) {
-              applyStatus(cmd.status);
-            } else {
-              ground.set({ fen: cmd.fen });
-            }
-          } else if (cmd.type === 'select') {
+            // Log the status for debugging purposes
+            console.log("SSE STATUS", {
+              fen: cmd.status.fen,
+              turn: cmd.status.turn,
+              dests: Object.keys(cmd.status.dests || {})
+            })
+
+            // Update the board with the new status from the server
+            applyStatus(cmd.status);
+          } 
+          else if (cmd.type === 'select') {
+
+            // Handle square selection command (e.g., for move hints)
             ground.selectSquare(cmd.key);
-          } else if (cmd.type === 'flip') {
+          } 
+          else if (cmd.type === 'flip') {
+
+            // Handle board flip command
             ground.toggleOrientation();
           }
           
@@ -433,6 +460,76 @@
       }
     })
 
+    const flipBtn = document.getElementById("flip-board-btn");
+    // Handler for flipping the board orientation
+    flipBtn.addEventListener("click", async () => {
+         // Call backend flip API
+        const res = await fetch('/api/board/flip', { method: 'POST' });
+        const data = await res.json();
+
+        if (!data.ok) {
+          console.warn('Flip failed, no status returned');
+          return;
+        }
+    });
+
+    // Handler for resetting the board with options for color and clock time
+    async function resetBoard({ color = 'white', clockTime = 0 } = {}) {
+      try {
+        // Destroy the existing board instance before creating a new one to ensure a clean slate
+        if (ground) {
+          lastStatus = null;
+          ground.destroy();
+        }
+
+        // Create a new board instance with the selected color orientation
+        createBoard(boardEl, color);
+
+        // Call backend reset API to reset the backend game state
+        const res = await fetch('/api/board/reset', { method: 'POST' });
+        const data = await res.json();
+
+        if (!res.ok) {
+          // Log the error response for debugging purposes
+          console.log("RESET FAILED", data)
+        }
+
+        // Apply inital state status to the board and update the UI
+        loadInitialState();
+
+        // Force board orientation based on selected color
+        const orientation = color === 'white' ? 'white' : color === 'black' ? 'black' : data.status.turn;
+        if (ground.state.orientation !== orientation) {
+          ground.set({ orientation });
+        }
+
+        // Restart engine if toggled on
+        if (engineToggle.checked) {
+          await fetch('/api/engine/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fen: data.status.fen })
+          });
+        }
+
+      } catch (err) {
+        console.error('Failed to reset board', err);
+      }
+    }
+
+
+    const colorSelect = document.getElementById("color-select");
+    const newGameBtn = document.getElementById("new-game-btn");
+    const clockSelect = document.getElementById("clock-select");
+    
+    // Handler for starting a new game with selected options
+    newGameBtn.addEventListener("click", async () => {
+      const color = colorSelect.value;
+      const clockTime = parseInt(clockSelect.value, 10);
+
+      // Call the resetBoard helper
+      await resetBoard({ color, clockTime });
+    });
 
 
     loadInitialState();

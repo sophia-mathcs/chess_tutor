@@ -20,7 +20,6 @@ exports.setFen = (req, res) => {
 
   sse.broadcast({
     type: 'setFen',
-    fen: status.fen,
     status,
   });
 
@@ -32,12 +31,6 @@ exports.reset = (req, res) => {
 
   const game = chessGame.getGame();
   const status = buildStatus(game);
-
-  sse.broadcast({
-    type: 'setFen',
-    fen: status.fen,
-    status,
-  });
 
   res.json({ ok: true, status });
 };

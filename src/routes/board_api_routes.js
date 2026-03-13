@@ -47,6 +47,9 @@ router.post('/reset', boardController.reset);
 // Returns the full game status including FEN, turn, and game-over flags
 router.get('/state', boardController.state);
 
+
+// ================= Clock Controller ==================
+
 module.exports = router;
 
 
