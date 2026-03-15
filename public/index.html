@@ -166,8 +166,8 @@
     const engineBestMoveEl = document.getElementById('engine-bestmove');
     const enginePvEl = document.getElementById('engine-pv');
 
-    const whiteclockEl = document.getElementById('clock-white');
-    const blackclockEl = document.getElementById('clock-black');
+    const whiteClockEl = document.getElementById('clock-white');
+    const blackClockEl = document.getElementById('clock-black');
 
     const colorSelect = document.getElementById("color-select");
     const newGameBtn = document.getElementById("new-game-btn");
@@ -447,7 +447,7 @@
             if (best.mate_in != null) {
                 const sign = best.mate_in > 0 ? "" : "-"  // positive: White mates, negative: Black mates
                 displayEval = `${sign}#${Math.abs(best.mate_in)}`
-                if (best.mate_in == 0) return; // avoid showing 0# which is confusing, treat as no eval 
+                if (best.mate_in == 0) return; // avoid eval bar jumps 
                 cp = best.mate_in > 0 ? 10000 : -10000
             } else if (cp != null) {
                 displayEval = (cp / 100).toFixed(2)
@@ -460,7 +460,8 @@
             engineDepthEl.textContent = best.depth != null ? best.depth : "-"
 
             // PV moves and best move arrow
-            enginePvEl.textContent = best.pv && best.pv.length ? best.pv.join(' ') : ""
+            engineBestMoveEl.textContent = best.pv && best.pv.length ? best.pv[0] : "-"
+            enginePvEl.textContent = best.pv && best.pv.length ? best.pv.join(' ') : "-"
             if (best.pv && best.pv.length) drawBestMoveArrow(best.pv[0])
           }
           else if (cmd.type === 'engineBestMove') {
@@ -490,6 +491,7 @@
         evalBar.classList.remove("hidden")
         enginePvEl.textContent = "Analyzing..."
         engineEvalEl.textContent = "-"
+        engineBestMoveEl.textContent = "-"
         engineDepthEl.textContent = "-"
 
         await fetch('/api/engine/start', {
@@ -502,6 +504,7 @@
         evalBar.classList.add("hidden")
         enginePvEl.textContent = "-"
         engineEvalEl.textContent = "-"
+        engineBestMoveEl.textContent = "-"
         engineDepthEl.textContent = "-"
 
         // Remove arrows
@@ -567,6 +570,25 @@
       else if (clockStatus.running === "black") {
         black -= elapsed;
       }
+      // Add update animations
+      whiteClockEl.parentElement.classList.remove("active","inactive");
+      blackClockEl.parentElement.classList.remove("active","inactive");
+
+      if (clockStatus.running === "white") {
+        whiteClockEl.parentElement.classList.add("active");
+        blackClockEl.parentElement.classList.add("inactive");
+      }
+      else if (clockStatus.running === "black") {
+        blackClockEl.parentElement.classList.add("active");
+        whiteClockEl.parentElement.classList.add("inactive");
+      }
+
+      // Add low time warning styles if either clock is below the 10 second threshold
+      if (white > 0 && white < 10000) whiteClockEl.parentElement.classList.add("low-time")
+      else whiteClockEl.parentElement.classList.remove("low-time")
+
+      if (black > 0 && black < 10000) blackClockEl.parentElement.classList.add("low-time")
+      else blackClockEl.parentElement.classList.remove("low-time")
 
       // Check for clock expiration
       if (!clockStatus.clockExpired) {
@@ -613,8 +635,8 @@
     }
     // Helper function to update the clock display elements
     function updateClockDisplay(whiteStr, blackStr) {
-      if (whiteclockEl) whiteclockEl.textContent = whiteStr;
-      if (blackclockEl) blackclockEl.textContent = blackStr;
+      if (whiteClockEl) whiteClockEl.textContent = whiteStr;
+      if (blackClockEl) blackClockEl.textContent = blackStr;
     }
 
     // Handler for resetting the board with options for color and clock time
