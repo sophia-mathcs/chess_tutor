@@ -517,6 +517,23 @@
     })
 
     const flipBtn = document.getElementById("flip-board-btn");
+    let clocksFlipped = false;
+    // Function to flip the clocks when the board orientation is flipped
+    function flipClocks() {
+      const boardRow = document.querySelector('.board-row');
+      const whiteClock = document.getElementById('clock-white').closest('.clock');
+      const blackClock = document.getElementById('clock-black').closest('.clock');
+
+      if (clocksFlipped) {
+        boardRow.before(blackClock);
+        boardRow.after(whiteClock);
+      } else {
+        boardRow.before(whiteClock);
+        boardRow.after(blackClock);
+      }
+
+      clocksFlipped = !clocksFlipped;
+    }
     // Handler for flipping the board orientation
     flipBtn.addEventListener("click", async () => {
          // Call backend flip API
@@ -527,6 +544,8 @@
           console.warn('Flip failed, no status returned');
           return;
         }
+
+        flipClocks();
     });
 
     // Function to synchronize the clock state with the server
