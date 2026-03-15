@@ -48,8 +48,6 @@ router.post('/reset', boardController.reset);
 router.get('/state', boardController.state);
 
 
-// ================= Clock Controller ==================
-
 module.exports = router;
 
 

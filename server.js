@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const board_API_Routes = require('./src/routes/board_api_routes');
 const engine_API_Routes = require('./src/routes/engine_api_routes');
+const clock_API_Routes = require('./src/routes/clock_api_routes');
 const general_API_Routes = require('./src/routes/general_api_routes');
 const engineService = require('./src/services/engine_service')
 
@@ -13,6 +14,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api/board', board_API_Routes);
 app.use('/api/engine', engine_API_Routes);
+app.use('/api/clock', clock_API_Routes);
 app.use('/api/general', general_API_Routes);
 
 engineService.connectStream()

@@ -82,7 +82,7 @@
 
           <!-- OPPONENT CLOCK -->
           <div class="clock clock-top">
-            <span id="clock-black">05:00</span>
+            <span id="clock-black">--:--</span>
           </div>
 
           <!-- BOARD ROW -->
@@ -98,7 +98,7 @@
 
           <!-- PLAYER CLOCK -->
           <div class="clock clock-bottom">
-            <span id="clock-white">05:00</span>
+            <span id="clock-white">--:--</span>
           </div>
 
           <!-- FEN DISPLAY -->
@@ -157,27 +157,57 @@
     const boardEl = document.getElementById('board');
     const statusEl = document.getElementById('status');
 
-    const fenDisplay = document.getElementById('fen-display')
+    const fenDisplay = document.getElementById('fen-display');
 
-    const evalFill = document.getElementById('eval-fill')
+    const evalFill = document.getElementById('eval-fill');
 
-    const engineDepthEl = document.getElementById('engine-depth')
-    const engineEvalEl = document.getElementById('engine-eval')
-    const engineBestMoveEl = document.getElementById('engine-bestmove')
-    const enginePvEl = document.getElementById('engine-pv')
+    const engineDepthEl = document.getElementById('engine-depth');
+    const engineEvalEl = document.getElementById('engine-eval');
+    const engineBestMoveEl = document.getElementById('engine-bestmove');
+    const enginePvEl = document.getElementById('engine-pv');
+
+    const whiteclockEl = document.getElementById('clock-white');
+    const blackclockEl = document.getElementById('clock-black');
+
+    const colorSelect = document.getElementById("color-select");
+    const newGameBtn = document.getElementById("new-game-btn");
+    const clockSelect = document.getElementById("clock-select");
 
 
-    let lastStatus = null;
+    // Retain states
+    let lastBoardStatus = null;
+
+    let clockStatus = {
+      on: false,
+      started: false,
+      clockExpired: false,
+
+      whiteMs: 0,
+      blackMs: 0,
+
+      running: null,        // "white" | "black" | null
+      lastServerTime: 0,    // timestamp from server
+      lastLocalTime: 0      // performance.now()
+    };
+
 
     // Helper function to update the status text based on game state
     function updateStatusText(status) {
+      // If no status is provided, show a generic connected message
       if (!status) {
         statusEl.textContent = 'Connected. Waiting for game state…';
         return;
       }
+      // Check for clock expiration first to prioritize that status
+      if (clockStatus.clockExpired) {
+        const winner = clockStatus.running === "white" ? "Black" : "White";
+        statusEl.textContent = `Time out — ${winner} wins!`;
+        return;
+      }
+      // Construct status text based on turn, check, checkmate, and draw conditions
       let text = `Turn: ${status.turn}.`;
-      if (status.isCheckmate) text += ' Checkmate.';
-      else if (status.isDraw) text += ' Draw.';
+      if (status.isCheckmate) text = `Checkmate + ${status.turn === 'white' ? 'Black' : 'White'} wins!`;
+      else if (status.isDraw) text = ' Draw.';
       else if (status.inCheck) text += ' Check.';
       statusEl.textContent = text;
     }
@@ -209,9 +239,9 @@
     function applyStatus(status) {
       // Avoid re-applying the same status to prevent unnecessary updates and potential animation glitches
       if (
-        lastStatus &&
-        lastStatus.fen === status.fen &&
-        lastStatus.turn === status.turn
+        lastBoardStatus &&
+        lastBoardStatus.fen === status.fen &&
+        lastBoardStatus.turn === status.turn
       ) {
         return;
       }
@@ -223,13 +253,13 @@
         destCount: Object.keys(status.dests || {}).length
       })
 
-      lastStatus = status;
+      lastBoardStatus = status;
 
-      const destEntries = Object.entries(status.dests || {})
-      const destsMap = new Map(destEntries.map(([from, tos]) => [from, tos]))
+      const destEntries = Object.entries(status.dests || {});
+      const destsMap = new Map(destEntries.map(([from, tos]) => [from, tos]));
 
       // clear any square selection first
-      ground.set({ selected: undefined })
+      ground.set({ selected: undefined });
 
       // Update the board position and legal moves based on the new status
       ground.set({
@@ -239,7 +269,7 @@
           color: status.turn,
           movableEvents
         }
-      })
+      });
 
       // Update status text
       updateStatusText(status);
@@ -251,9 +281,9 @@
     // Handler for user moves on the board
     async function onUserMove(orig, dest) {
       // Log the attempted move for debugging purposes
-      console.log("USER MOVE", { from: orig, to: dest, fen: lastStatus?.fen })
+      console.log("USER MOVE", { from: orig, to: dest, fen: lastBoardStatus?.fen });
 
-      const previousStatus = lastStatus;
+      const previousStatus = lastBoardStatus;
 
       try {
         const res = await fetch('/api/board/move', {
@@ -282,6 +312,37 @@
           applyStatus(previousStatus);
         }
         statusEl.textContent = 'Network error, move reverted.';
+      }
+
+      if (clockStatus.on) {
+
+        if (!clockStatus.started) {
+          clockStatus.started = true;
+
+          const res = await fetch('/api/clock/start', {
+            method: 'POST'
+          });
+
+          const data = await res.json();
+
+          await syncClockState();
+
+          // Log the attempted clock start for debugging purposes
+          console.log("CLOCK START", data);
+        }
+
+        const res = await fetch('/api/clock/switch-turn', {
+          method: 'POST'
+        });
+
+
+        // Switch turn on the clock after a move is made
+        const data = await res.json();
+
+        await syncClockState();
+
+        // Log the attempted clock switch for debugging purposes
+        console.log("CLOCK SWITCH", data);
       }
     }
 
@@ -386,6 +447,7 @@
             if (best.mate_in != null) {
                 const sign = best.mate_in > 0 ? "" : "-"  // positive: White mates, negative: Black mates
                 displayEval = `${sign}#${Math.abs(best.mate_in)}`
+                if (best.mate_in == 0) return; // avoid showing 0# which is confusing, treat as no eval 
                 cp = best.mate_in > 0 ? 10000 : -10000
             } else if (cp != null) {
                 displayEval = (cp / 100).toFixed(2)
@@ -400,28 +462,19 @@
             // PV moves and best move arrow
             enginePvEl.textContent = best.pv && best.pv.length ? best.pv.join(' ') : ""
             if (best.pv && best.pv.length) drawBestMoveArrow(best.pv[0])
-        }
-
-          else if (cmd.type === 'engineBestMove') {
-
-            const move = cmd.move
-
-            engineBestMoveEl.textContent = move
-
-            drawBestMoveArrow(move)
-
           }
-
+          else if (cmd.type === 'engineBestMove') {
+            const move = cmd.move
+            engineBestMoveEl.textContent = move
+            drawBestMoveArrow(move)
+          }
           else if (cmd.type === 'engineStop') {
-
             ground.set({
               drawable: {
                 autoShapes: []
               }
             })
-
           }
-
         } catch (err) {
           console.warn('Unknown command', e.data, err);
         }
@@ -442,7 +495,7 @@
         await fetch('/api/engine/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fen: lastStatus.fen })
+          body: JSON.stringify({ fen: lastBoardStatus.fen })
         })
 
       } else {
@@ -473,12 +526,103 @@
         }
     });
 
+    // Function to synchronize the clock state with the server
+    async function syncClockState() {
+
+      const res = await fetch('/api/clock/state');
+      const data = await res.json();
+
+      if (!data.ok || !data.state) {
+        console.warn('Failed to sync clock state', data);
+        return;
+      } else {
+        clockStatus.whiteMs = data.state.whiteMs;
+        clockStatus.blackMs = data.state.blackMs;
+
+        clockStatus.running = data.state.running;
+
+        clockStatus.lastServerTime = data.state.serverTime;
+        clockStatus.lastLocalTime = performance.now();
+      }
+    }
+
+    // Function to render the clock updates on the client side
+    function renderClock() {
+      // If the clock is not active, skip rendering and wait for the next animation frame
+      if (!clockStatus.on) {
+        requestAnimationFrame(renderClock);
+        return;
+      }
+
+      // Calculate elapsed time since last update and adjust the displayed clock times accordingly
+      const now = performance.now();
+      const elapsed = now - clockStatus.lastLocalTime;
+
+      let white = clockStatus.whiteMs;
+      let black = clockStatus.blackMs;
+
+      if (clockStatus.running === "white") {
+        white -= elapsed;
+      } 
+      else if (clockStatus.running === "black") {
+        black -= elapsed;
+      }
+
+      // Check for clock expiration
+      if (!clockStatus.clockExpired) {
+        if (white <= 0 || black <= 0) {
+
+          clockStatus.clockExpired = true;
+
+          // freeze board
+          ground.set({
+            movable: {
+              color: null,
+              dests: new Map()
+            }
+          });
+
+          // stop server clock
+          fetch('/api/clock/stop', { method: 'POST' });
+
+          const winner = white <= 0 ? "Black" : "White";
+
+          statusEl.textContent = `Time out — ${winner} wins!`;
+        }
+      }
+
+      // Update the clock display
+      updateClockDisplay(
+        formatTime(white),
+        formatTime(black)
+      );
+
+      requestAnimationFrame(renderClock);
+    }
+    // Helper function to update the clock display
+    function formatTime(ms) {
+
+      if (ms <= 0) return "0:00";
+
+      const totalSeconds = Math.floor(ms / 1000);
+
+      const m = Math.floor(totalSeconds / 60);
+      const s = totalSeconds % 60;
+
+      return `${m}:${s.toString().padStart(2, "0")}`;
+    }
+    // Helper function to update the clock display elements
+    function updateClockDisplay(whiteStr, blackStr) {
+      if (whiteclockEl) whiteclockEl.textContent = whiteStr;
+      if (blackclockEl) blackclockEl.textContent = blackStr;
+    }
+
     // Handler for resetting the board with options for color and clock time
-    async function resetBoard({ color = 'white', clockTime = 0 } = {}) {
+    async function resetBoard({ color = 'white'} = {}) {
       try {
         // Destroy the existing board instance before creating a new one to ensure a clean slate
         if (ground) {
-          lastStatus = null;
+          lastBoardStatus = null;
           ground.destroy();
         }
 
@@ -517,10 +661,41 @@
       }
     }
 
+    // Handler for resetting the clock with options for color and clock time
+    async function resetClock({ color = 'white', clockTime = 0 } = {}) {
 
-    const colorSelect = document.getElementById("color-select");
-    const newGameBtn = document.getElementById("new-game-btn");
-    const clockSelect = document.getElementById("clock-select");
+      await fetch('/api/clock/stop', { method: 'POST' });
+
+      if (clockTime > 0) {
+
+        clockStatus.on = true;
+        clockStatus.started = false;
+
+        clockStatus.clockExpired = false;
+
+        const res = await fetch('/api/clock/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ time: clockTime })
+        });
+
+        const data = await res.json();
+
+        // Log the attempted reset for debugging purposes
+        console.log("CLOCK RESET", { time: clockTime, response: data });
+
+        await syncClockState();
+
+        renderClock();
+
+      } else {
+
+        clockStatus.on = false;
+        updateClockDisplay("--:--", "--:--");
+
+      }
+    }
+
     
     // Handler for starting a new game with selected options
     newGameBtn.addEventListener("click", async () => {
@@ -528,12 +703,16 @@
       const clockTime = parseInt(clockSelect.value, 10);
 
       // Call the resetBoard helper
-      await resetBoard({ color, clockTime });
+      await resetBoard({ color});
+
+      // Reset the clock based on selected time control
+      await resetClock({ color, clockTime });
     });
 
 
     loadInitialState();
     connect();
+
   </script>
 </body>
 </html>

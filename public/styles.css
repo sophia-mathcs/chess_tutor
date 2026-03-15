@@ -171,16 +171,25 @@ h1 {
   background: #0f172a;
   border: 1px solid #333;
   border-radius: 6px;
+
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
-
-/* optional visual difference */
-
 .clock-top {
   opacity: 0.9;
 }
 
 .clock-bottom {
   opacity: 1;
+}
+
+.clock.active {
+  background: #2c2c2c;
+  box-shadow: 0 0 10px rgba(0,0,0,0.6);
+  font-weight: bold;
+}
+
+.clock.inactive {
+  opacity: 0.65;
 }
 
 /* FEN */
