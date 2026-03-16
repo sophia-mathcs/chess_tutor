@@ -1,0 +1,193 @@
+// main.js
+// This file orchestrates the entire chessboard UI, engine, clock, and user interactions.
+
+
+// Import application state object
+import { state } from './state.js';
+
+// Import DOM references
+import { 
+    initDOMRefs,
+    boardEl,
+    statusEl,
+    fenDisplay,
+    evalFill,
+    engineDepthEl,
+    engineEvalEl,
+    engineBestMoveEl,
+    enginePvEl,
+    whiteClockEl,
+    blackClockEl,
+    colorSelect,
+    newGameBtn,
+    clockSelect,
+    engineToggle,
+    flipBtn,
+    evalBar
+} from './domRefs.js';
+
+// Initialize DOM references (if any setup needed)
+initDOMRefs();
+
+// --------------------------- CLOCK MODULE ---------------------------
+// Import clock helpers
+import { 
+    renderClock, 
+    syncClockState, 
+    resetClock 
+} from './clock.js';
+
+// Sync the clock state with server, then start rendering loop
+syncClockState().then(() => {
+    renderClock(); // This starts the continuous clock rendering loop
+});
+
+// --------------------------- BOARD MODULE ---------------------------
+// Import board functions
+import { 
+    createBoard,
+    applyStatus,
+    flipClocks,
+    updateEvalBar,
+    updateStatusText,
+    drawBestMove
+} from './board.js';
+
+// Initialize Chessground board instance
+createBoard(boardEl); 
+
+// --------------------------- PLAYERS MODULE ---------------------------
+// Import user move handler
+import { onUserMove } from './players.js';
+
+// --------------------------- SSE MODULE ---------------------------
+// Import server-sent events connection handler
+import { connect } from './sse.js';
+
+// --------------------------- INITIAL STATE ---------------------------
+// Load the initial board state from the server
+async function loadInitialState() {
+    try {
+        const res = await fetch('/api/board/state');
+        const data = await res.json();
+        if (data && data.status) {
+            // Apply initial status to board and UI
+            applyStatus(data.status);
+        }
+    } catch (err) {
+        console.warn('Failed to load initial state', err);
+    }
+}
+
+// --------------------------- ENGINE TOGGLE ---------------------------
+// Handler for enabling/disabling the engine
+engineToggle.addEventListener("change", async () => {
+    if (engineToggle.checked) {
+        // Show evaluation UI and reset engine info
+        evalBar.classList.remove("hidden");
+        enginePvEl.textContent = "Analyzing...";
+        engineEvalEl.textContent = "-";
+        engineBestMoveEl.textContent = "-";
+        engineDepthEl.textContent = "-";
+
+        // Start the engine with current FEN
+        await fetch('/api/engine/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fen: state.lastBoardStatus.fen })
+        });
+
+    } else {
+        // Hide eval UI and reset engine info
+        evalBar.classList.add("hidden");
+        enginePvEl.textContent = "-";
+        engineEvalEl.textContent = "-";
+        engineBestMoveEl.textContent = "-";
+        engineDepthEl.textContent = "-";
+
+        // Remove board arrows
+        state.ground.set({ drawable: { autoShapes: [] } });
+
+        // Stop engine server-side
+        await fetch('/api/engine/stop', { method: 'POST' });
+    }
+});
+
+// --------------------------- FLIP BOARD ---------------------------
+// Handler for flipping board orientation
+flipBtn.addEventListener("click", async () => {
+    // Call backend flip API
+    const res = await fetch('/api/board/flip', { method: 'POST' });
+    const data = await res.json();
+
+    if (!data.ok) {
+        console.warn('Flip failed, no status returned');
+        return;
+    }
+
+    // Flip clocks visually
+    flipClocks();
+});
+
+// --------------------------- RESET BOARD ---------------------------
+// Resets the board and optionally sets orientation
+export async function resetBoard({ color = 'white'} = {}) {
+    try {
+        // Destroy existing board for a clean start
+        if (state.ground) {
+            state.lastBoardStatus = null;
+            state.ground.destroy();
+        }
+
+        // Create new board with selected color
+        createBoard(boardEl, color);
+
+        // Call backend to reset server-side board
+        const res = await fetch('/api/board/reset', { method: 'POST' });
+        const data = await res.json();
+
+        if (!res.ok) console.log("RESET FAILED", data);
+
+        // Apply initial board state
+        await loadInitialState();
+
+        // Force orientation of board and clock if needed
+        const orientation = color === 'white' ? 'white' : color === 'black' ? 'black' : data.status.turn;
+        if (state.ground.state.orientation !== orientation) {
+            state.ground.set({ orientation });
+        }
+        if (orientation === 'black' && state.clocksFlipped !== true) {
+            flipClocks();
+        } 
+
+        // Restart engine if toggled on
+        if (engineToggle.checked) {
+            await fetch('/api/engine/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fen: data.status.fen })
+            });
+        }
+
+    } catch (err) {
+        console.error('Failed to reset board', err);
+    }
+}
+
+// --------------------------- NEW GAME BUTTON ---------------------------
+// Starts a new game with selected color and clock
+newGameBtn.addEventListener("click", async () => {
+    const color = colorSelect.value;
+    const clockTime = parseInt(clockSelect.value, 10);
+
+    // Reset the board first
+    await resetBoard({ color });
+
+    // Reset clock based on time control
+    await resetClock({ color, clockTime });
+});
+
+// --------------------------- INITIAL LOAD ---------------------------
+// Load initial state and connect SSE
+loadInitialState();
+connect();
