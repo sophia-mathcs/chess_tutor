@@ -38,8 +38,14 @@ export async function syncClockState() {
 export function renderClock() {
   const cs = state.clockStatus;
 
+  // stop all animations if off
   if (!cs.on) {
     requestAnimationFrame(renderClock);
+
+    whiteClockEl.parentElement.classList.remove("active", "inactive");
+    blackClockEl.parentElement.classList.remove("active", "inactive");
+    whiteClockEl.parentElement.classList.add("inactive");
+    blackClockEl.parentElement.classList.add("inactive");
     return;
   }
 

@@ -190,4 +190,5 @@ newGameBtn.addEventListener("click", async () => {
 // --------------------------- INITIAL LOAD ---------------------------
 // Load initial state and connect SSE
 loadInitialState();
+resetClock({ color:'white', clockTime: 'No Clock'})
 connect();

@@ -1,5 +1,7 @@
 import { applyStatus } from './board.js';
 import { handleEngineUpdate } from './engine.js';
+import { state } from "./state.js";
+import { syncClockState } from './clock.js';
 
 export function connect() {
     const ev = new EventSource('/api/general/stream');
@@ -14,17 +16,55 @@ export function connect() {
 
         switch(cmd.type) {
             case 'setFen':
-            applyStatus(cmd.status);
+                applyStatus(cmd.status);
+                manageClocks(cmd.status);
             break;
             case 'engineUpdate':
-            handleEngineUpdate(cmd.lines);
+                handleEngineUpdate(cmd.lines);
             break;
             case 'flip':
-            import('./board.js').then(b => b.flipBoard());
+                import('./board.js').then(b => b.flipBoard());
             break;
             case 'select':
-            import('./board.js').then(b => b.state.ground.selectSquare(cmd.key));
+                import('./board.js').then(b => b.state.ground.selectSquare(cmd.key));
             break;
         }
     };
+}
+
+
+// Players Clock Manager
+async function manageClocks(status){
+    if (status.isGameOver){
+        state.clockStatus.on = false;
+    }
+    if (state.clockStatus.on) {
+        if (!state.clockStatus.started) {
+            state.clockStatus.started = true;
+
+            const res = await fetch('/api/clock/start', {
+            method: 'POST'
+            });
+
+            const data = await res.json();
+
+            await syncClockState();
+
+            // Log the attempted clock start for debugging purposes
+            console.log("CLOCK START", data);
+        }
+
+        const res = await fetch('/api/clock/switch-turn', {
+            method: 'POST'
+        });
+
+
+        // Switch turn on the clock after a move is made
+        const data = await res.json();
+
+        await syncClockState();
+
+        // Log the attempted clock switch for debugging purposes
+        console.log("CLOCK SWITCH", data);
+    }
 }

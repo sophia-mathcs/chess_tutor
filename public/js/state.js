@@ -19,6 +19,5 @@ export const state = {
     },
 
     // Flag for flipped clocks
-    clocksFlipped: false
-
+    clocksFlipped: false,
 }
