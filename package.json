@@ -12,6 +12,7 @@
     "chess": "^1.5.1",
     "chess.js": "^1.4.0",
     "express": "^4.22.1",
-    "stockfish": "^18.0.5"
+    "stockfish": "^18.0.5",
+    "uuid": "^13.0.0"
   }
 }

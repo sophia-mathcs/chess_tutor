@@ -2,7 +2,7 @@ export let boardEl, statusEl;
 export let fenDisplay, evalFill;
 export let engineDepthEl, engineEvalEl, engineBestMoveEl, enginePvEl;
 export let whiteClockEl, blackClockEl;
-export let colorSelect, newGameBtn, clockSelect;
+export let playAgainstSelect, colorSelect, newGameBtn, clockSelect;
 export let engineToggle, flipBtn, evalBar;
 
 export function initDOMRefs() {
@@ -20,6 +20,7 @@ export function initDOMRefs() {
   whiteClockEl = document.getElementById('clock-white');
   blackClockEl = document.getElementById('clock-black');
 
+  playAgainstSelect = document.getElementById('player-select');
   colorSelect = document.getElementById("color-select");
   newGameBtn = document.getElementById("new-game-btn");
   clockSelect = document.getElementById("clock-select");

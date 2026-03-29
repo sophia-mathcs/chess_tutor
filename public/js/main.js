@@ -18,6 +18,7 @@ import {
     enginePvEl,
     whiteClockEl,
     blackClockEl,
+    playAgainstSelect,
     colorSelect,
     newGameBtn,
     clockSelect,
@@ -28,6 +29,34 @@ import {
 
 // Initialize DOM references (if any setup needed)
 initDOMRefs();
+
+// --------------------------- ID MODULE ------------------------------
+import { 
+    setMode, 
+    createGameWithPlayers,
+    getGameId,
+    getColor,
+    getMode,
+    getPlayerId 
+} from './ids.js';
+
+async function setupPlayers() {
+    console.log("SETTING UP.");
+    setMode(playAgainstSelect.value); // self or bot
+
+    console.log("Gamemode:", getMode());
+
+    try {
+        const players = await createGameWithPlayers(colorSelect.value);
+        
+        console.log("Game ID:", getGameId());
+        console.log("Assigned player IDs:", players);
+        console.log("Controlled color:", getColor());
+        
+    } catch (err) {
+        console.error("Failed to setup players", err);
+    }
+}
 
 // --------------------------- CLOCK MODULE ---------------------------
 // Import clock helpers
@@ -68,7 +97,14 @@ import { connect } from './sse.js';
 // Load the initial board state from the server
 async function loadInitialState() {
     try {
-        const res = await fetch('/api/board/state');
+        await setupPlayers();
+
+        const res = await fetch(`/api/board/state?gameId=${getGameId()}`);
+
+        if (!res.ok) {
+            throw new Error('Failed to fetch game state');
+        }
+
         const data = await res.json();
         if (data && data.status) {
             // Apply initial status to board and UI
@@ -117,7 +153,7 @@ engineToggle.addEventListener("change", async () => {
 // Handler for flipping board orientation
 flipBtn.addEventListener("click", async () => {
     // Call backend flip API
-    const res = await fetch('/api/board/flip', { method: 'POST' });
+    const res = await fetch('/api/board/flip', { method: 'POST', gameId:getGameId() });
     const data = await res.json();
 
     if (!data.ok) {
@@ -180,7 +216,10 @@ newGameBtn.addEventListener("click", async () => {
     const color = colorSelect.value;
     const clockTime = parseInt(clockSelect.value, 10);
 
-    // Reset the board first
+    // Setup players
+    await setupPlayers();
+
+    // Reset the board 
     await resetBoard({ color });
 
     // Reset clock based on time control
@@ -190,5 +229,5 @@ newGameBtn.addEventListener("click", async () => {
 // --------------------------- INITIAL LOAD ---------------------------
 // Load initial state and connect SSE
 loadInitialState();
-resetClock({ color:'white', clockTime: 'No Clock'})
+resetClock({ color:'white', clockTime: 'No Clock' });
 connect();

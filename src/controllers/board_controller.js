@@ -1,61 +1,107 @@
-const chessGame = require('../game/chess_game');
-const buildStatus = require('../game/status_builder');
-const sse = require('../services/sse_service');
+const gameManager = require('../game/game_manager');
 
+// Set the board to a specific FEN
+// POST /api/board/set-fen
+// Body: { gameId, fen }
 exports.setFen = (req, res) => {
-  const { fen } = req.body || {};
+  const { gameId, fen } = req.body || {};
 
-  if (!fen) {
-    return res.status(400).json({ error: 'Provide a FEN string' });
+  if (!fen || gameId === undefined) {
+    return res.status(400).json({ error: 'Provide gameId and FEN string' });
   }
 
-  const ok = chessGame.loadFen(fen);
+  const game = gameManager.getGame(gameId);
+  if (!game) {
+    return res.status(404).json({ error: 'Game not found' });
+  }
 
+  const ok = game.loadFen(fen);
   if (!ok) {
     return res.status(400).json({ error: 'Invalid FEN' });
   }
 
-  const game = chessGame.getGame();
-  const status = buildStatus(game);
+  const status = game.buildStatus();
 
-  sse.broadcast({
-    type: 'setFen',
-    status,
-  });
+  gameManager.broadcastUpdate(gameId, status);
 
   res.json({ ok: true, status });
 };
 
+
+// Reset the board
+// POST /api/board/reset
+// Body: { gameId }
 exports.reset = (req, res) => {
-  chessGame.reset();
+  const { gameId } = req.body || {};
 
-  const game = chessGame.getGame();
-  const status = buildStatus(game);
+  const game = gameManager.getGame(gameId);
+  if (!game) {
+    return res.status(404).json({ error: 'Game not found' });
+  }
+
+  game.reset();
+
+  const status = game.buildStatus();
+
+  gameManager.broadcastUpdate(gameId, status);
 
   res.json({ ok: true, status });
 };
 
+
+// Flip board (visual only)
+// POST /api/board/flip
+// Body: { gameId }
 exports.flip = (req, res) => {
-  sse.broadcast({ type: 'flip' });
-  res.json({ ok: true });
-};
+  const { gameId } = req.body || {};
 
-exports.select = (req, res) => {
-  const { key } = req.body || {};
+  if (gameId === undefined) {
+    return res.status(400).json({ error: 'Provide gameId' });
+  }
 
-  sse.broadcast({
-    type: 'select',
-    key: key ?? null,
+  gameManager.broadcastRaw({
+    type: 'flip',
+    gameId
   });
 
   res.json({ ok: true });
 };
 
+
+// Select a square (UI highlight)
+// POST /api/board/select
+// Body: { gameId, key }
+exports.select = (req, res) => {
+  const { gameId, key } = req.body || {};
+
+  if (gameId === undefined) {
+    return res.status(400).json({ error: 'Provide gameId' });
+  }
+
+  gameManager.broadcastRaw({
+    type: 'select',
+    gameId,
+    key: key ?? null
+  });
+
+  res.json({ ok: true });
+};
+
+
+// Get current board state
+// GET /api/board/state?gameId=0
 exports.state = (req, res) => {
-  const game = chessGame.getGame();
+  const gameId = req.query.gameId;
+
+  const game = gameManager.getGame(gameId);
+  if (!game) {
+    return res.status(404).json({ error: 'Game not found' });
+  }
+
+  const status = game.buildStatus();
 
   res.json({
     ok: true,
-    status: buildStatus(game),
+    status
   });
 };

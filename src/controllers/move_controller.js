@@ -1,54 +1,39 @@
-const chessGame = require('../game/chess_game');
-const buildStatus = require('../game/status_builder');
-const sse = require('../services/sse_service');
-const engineService = require('../services/engine_service')
+const gameManager = require('../game/game_manager');
 
+// Make a move
+// POST /api/boardmove
+// Body: { gameId, playerId, from, to }
 exports.move = (req, res) => {
-  const { from, to } = req.body || {};
 
-  if (!from || !to) {
+  const { gameId, playerId, from, to } = req.body || {};
+
+  if (gameId === undefined || !playerId || !from || !to) {
     return res.status(400).json({
-      error: 'Provide { "from": "...", "to": "..." }',
+      error: 'Provide { "gameId": ..., "playerId": "...", "from": "...", "to": "..." }'
     });
   }
 
-  const game = chessGame.getGame();
+  const game = gameManager.getGame(gameId);
 
-  if (game.isGameOver()) {
-    return res.status(400).json({
-      error: 'Game is already over',
-      status: buildStatus(game),
+  if (!game) {
+    return res.status(404).json({
+      error: 'Game not found'
     });
   }
 
-  const result = chessGame.move(from, to);
+  // Determine which color this player controls
+  const result = gameManager.makeMove(playerId, from, to);
 
   if (!result) {
     return res.status(400).json({
-      error: 'Illegal move',
+      error: 'Illegal move'
     });
   }
-
-  const status = buildStatus(game);
-
-  // If the engine is running, update its position to the new game state
-  const fen = status.fen
-
-  engineService.setPosition(fen)
-
-  if (engineService.getState().running) {
-    engineService.startAnalysis(fen)
-  }
-
-  sse.broadcast({
-    type: 'setFen',
-    fen: status.fen,
-    status,
-  });
 
   res.json({
     ok: true,
     move: { from, to },
-    status,
+    status: result.status
   });
+
 };

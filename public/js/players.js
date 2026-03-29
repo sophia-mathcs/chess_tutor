@@ -1,15 +1,38 @@
 // players.js
-import { state } from './state.js';
+// Handles user moves securely using assigned player IDs
 
+import { getPlayerId, getColor, getGameId } from './ids.js';
 
-// User Handler
-export async function onUserMove(orig, dest) {
-    // Log the attempted move for debugging purposes
-    console.log("USER MOVE", { from: orig, to: dest, fen: state.lastBoardStatus?.fen });
+// Sends a move to the backend with attached playerId
+export async function onUserMove(from, to) {
+    const playerId = getPlayerId();
+    const color = getColor();
+    const gameId = getGameId();
 
-    await fetch('/api/board/move', {
+    if (!playerId || !gameId || !color) {
+        console.warn('Move blocked: player ID or game ID missing');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/board/move', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: orig, to: dest }),
-    });
+        body: JSON.stringify({
+            gameId, 
+            playerId, 
+            from, 
+            to
+        })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || data.error) {
+        console.warn('Move rejected:', data.error);
+        return;
+        }
+    } catch (err) {
+        console.error('Move failed', err);
+    }
 }
