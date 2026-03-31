@@ -1,6 +1,7 @@
 export let boardEl, statusEl;
 export let fenDisplay, evalFill;
 export let engineDepthEl, engineEvalEl, engineBestMoveEl, enginePvEl;
+export let hintTextEl;
 export let whiteClockEl, blackClockEl;
 export let colorSelect, newGameBtn, clockSelect;
 export let engineToggle, flipBtn, evalBar;
@@ -16,6 +17,7 @@ export function initDOMRefs() {
   engineEvalEl = document.getElementById('engine-eval');
   engineBestMoveEl = document.getElementById('engine-bestmove');
   enginePvEl = document.getElementById('engine-pv');
+  hintTextEl = document.getElementById('hint-text');
 
   whiteClockEl = document.getElementById('clock-white');
   blackClockEl = document.getElementById('clock-black');

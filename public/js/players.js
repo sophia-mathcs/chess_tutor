@@ -2,6 +2,7 @@
 import { state } from './state.js';
 import { applyStatus } from './board.js';
 import { syncClockState } from './clock.js';
+import { statusEl } from './domRefs.js';
 
 // Handler for user moves on the board
 export async function onUserMove(orig, dest) {
@@ -9,6 +10,7 @@ export async function onUserMove(orig, dest) {
     console.log("USER MOVE", { from: orig, to: dest, fen: state.lastBoardStatus?.fen });
 
     const previousStatus = state.lastBoardStatus;
+    const playedMove = `${orig}${dest}`;
 
     try {
     const res = await fetch('/api/board/move', {
@@ -31,6 +33,12 @@ export async function onUserMove(orig, dest) {
         statusEl.textContent = data.error || 'Move rejected by server.';
         return;
     }
+
+    // Only set hint context when the server accepted the move.
+    state.lastPlayedMove = playedMove;
+    state.lastMoveFollowedBest = state.lastEngineBestMove
+        ? state.lastEngineBestMove === playedMove
+        : null;
     } catch (err) {
     if (previousStatus) {
         state.ground.set({ fen: previousStatus.fen });

@@ -47,4 +47,8 @@ router.get('/state', engineController.state)
 // GET /api/engine/info
 router.get('/info', engineController.info)
 
+// Explain current hint using ChatGPT
+// POST /api/engine/explain
+router.post('/explain', engineController.explain)
+
 module.exports = router

@@ -1,6 +1,7 @@
 const engineService = require('../services/engine_service')
 const chessGame = require('../game/chess_game')
 const sse = require('../services/sse_service')
+const hintService = require('../services/hint_service')
 
 // ================= EngineController ==================
 
@@ -93,5 +94,35 @@ exports.info = (req, res) => {
   } catch (err) {
     console.error('Engine info error:', err)
     res.status(500).json({ ok: false, error: 'Failed to retrieve engine info' })
+  }
+}
+
+// Explain engine hint with ChatGPT
+// POST /api/engine/explain
+exports.explain = async (req, res) => {
+  const { fen, turn, engineLine, lastPlayedMove, followedBestMove } = req.body || {}
+
+  if (!fen || !turn || !engineLine) {
+    return res.status(400).json({
+      ok: false,
+      error: 'Provide { fen, turn, engineLine }'
+    })
+  }
+
+  try {
+    const result = await hintService.explainHint({
+      fen,
+      turn,
+      engineLine,
+      lastPlayedMove,
+      followedBestMove
+    })
+    res.json(result)
+  } catch (err) {
+    console.error('Engine explain error:', err.message)
+    res.status(500).json({
+      ok: false,
+      error: err.message || 'Failed to generate hint explanation'
+    })
   }
 }

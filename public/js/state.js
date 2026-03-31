@@ -19,6 +19,15 @@ export const state = {
     },
 
     // Flag for flipped clocks
-    clocksFlipped: false
+    clocksFlipped: false,
+
+    // Hints context
+    lastEngineBestMove: null,
+    lastPlayedMove: null,
+    lastMoveFollowedBest: null,
+
+    // Hint request throttling (avoid calling OpenAI on every engine tick)
+    lastHintFen: null,
+    hintInFlight: false
 
 }
