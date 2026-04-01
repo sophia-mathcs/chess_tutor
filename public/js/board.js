@@ -25,7 +25,8 @@ export function applyStatus(status) {
     if (
     state.lastBoardStatus &&
     state.lastBoardStatus.fen === status.fen &&
-    state.lastBoardStatus.turn === status.turn
+    state.lastBoardStatus.turn === status.turn &&
+    JSON.stringify(state.lastBoardStatus.dests) === JSON.stringify(status.dests)
     ) {
     return;
     }
@@ -48,6 +49,7 @@ export function applyStatus(status) {
     // Update the board position and legal moves based on the new status
     state.ground.set({
     fen: status.fen,
+    turnColor: status.turn,
     movable: {
         dests: destsMap,
         color: status.turn,

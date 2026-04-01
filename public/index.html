@@ -30,6 +30,11 @@
           </label>
 
           <div class="control">
+            <input type="checkbox" id="toggle-bot">
+            <span>Bot</span>
+          </div>
+
+          <div class="control">
             <button class="control-btn" id="flip-board-btn"></button>
             <span>Flip Board</span>
           </div>
@@ -61,6 +66,18 @@
             <option value="black">Black</option>
             <option value="random">Random</option>
           </select>
+        </label>
+
+        <label>
+          Elo
+          <input
+            id="elo"
+            type="number"
+            name="elo-field"
+            min="0"
+            max="3000"
+            step="1"
+            value="800">
         </label>
 
         <button class="button-newgame" id="new-game-btn">Start New Game</button>

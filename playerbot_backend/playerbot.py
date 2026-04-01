@@ -1,31 +1,70 @@
 import chess
-import chess.engine
+import asyncio
 import random
 
-class PlayerBot:
-    def __init__(self):
-        self.elo = 800
-        self.board = chess.Board()
-        self.active = False
 
-    def start(self, elo=800):
-        """Start the bot with a given Elo (for future use)."""
+class ChessBot:
+
+    def __init__(self, color, elo):
+        self.color = color
         self.elo = elo
-        self.board.reset()
-        self.active = True
+        self.position_id = 0
 
-    def stop(self):
-        """Stop the bot."""
-        self.active = False
+    async def on_fen(self, fen, clock_state, send_move):
 
-    def get_move(self, fen, white_time, black_time):
-        """Return a random legal move for the current board."""
-        if not self.active:
-            return None
+        self.board = chess.Board(fen)
 
-        self.board.set_fen(fen)
+        self.position_id += 1
+        pid = self.position_id
+
+        if not self._my_turn():
+            return
+
+        think_time = self._compute_think_time(clock_state)
+
+        await asyncio.sleep(think_time)
+
+        if pid != self.position_id:
+            return
+
+        move = self.compute_move()
+
+        await send_move(move)
+
+    def _my_turn(self):
+
+        if self.board.turn == chess.WHITE and self.color == "w":
+            return True
+
+        if self.board.turn == chess.BLACK and self.color == "b":
+            return True
+
+        return False
+
+    def _compute_think_time(self, clock):
+
+        if not clock:
+            return random.uniform(0.4, 1.0)
+
+        white = clock.get("white", 0)
+        black = clock.get("black", 0)
+
+        my_time = white if self.color == "w" else black
+
+        if my_time > 120:
+            return random.uniform(0.5, 1.5)
+
+        if my_time > 30:
+            return random.uniform(0.3, 0.9)
+
+        return random.uniform(0.1, 0.4)
+
+    def compute_move(self):
+
         moves = list(self.board.legal_moves)
-        if not moves:
-            return None
+
         move = random.choice(moves)
+
+        self.board.push(move)
+
         return move.uci()

@@ -3,7 +3,7 @@ export let fenDisplay, evalFill;
 export let engineDepthEl, engineEvalEl, engineBestMoveEl, enginePvEl;
 export let whiteClockEl, blackClockEl;
 export let colorSelect, newGameBtn, clockSelect;
-export let engineToggle, flipBtn, evalBar;
+export let engineToggle, playerbotToggle, flipBtn, evalBar;
 
 export function initDOMRefs() {
   boardEl = document.getElementById('board');
@@ -25,6 +25,7 @@ export function initDOMRefs() {
   clockSelect = document.getElementById("clock-select");
 
   engineToggle = document.getElementById("toggle-engine");
+  playerbotToggle = document.getElementById("toggle-bot");
   flipBtn = document.getElementById("flip-board-btn");
   evalBar = document.getElementById("eval-bar");
 }

@@ -20,4 +20,6 @@ export const state = {
 
     // Flag for flipped clocks
     clocksFlipped: false,
+
+    playerColor: 'white',
 }

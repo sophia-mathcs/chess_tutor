@@ -22,6 +22,7 @@ import {
     newGameBtn,
     clockSelect,
     engineToggle,
+    playerbotToggle,
     flipBtn,
     evalBar
 } from './domRefs.js';
@@ -97,6 +98,9 @@ engineToggle.addEventListener("change", async () => {
             body: JSON.stringify({ fen: state.lastBoardStatus.fen })
         });
 
+
+        console.log('Engine activated');
+
     } else {
         // Hide eval UI and reset engine info
         evalBar.classList.add("hidden");
@@ -110,8 +114,37 @@ engineToggle.addEventListener("change", async () => {
 
         // Stop engine server-side
         await fetch('/api/engine/stop', { method: 'POST' });
+
+
+        console.log('Engine deactivated');
     }
 });
+
+
+// --------------------------- PLAYERBOT TOGGLE ---------------------------
+// Handler for enabling/disabling theplayerbot
+playerbotToggle.addEventListener("change", async () => {
+    if (playerbotToggle.checked) {
+        // Start the engine with current FEN
+        const color = colorSelect.value === 'white' ? 'b': 'w';
+        await fetch('/api/playerbot/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bot_color: color, elo: 800 })
+        });
+
+        console.log('Playerbot activated');
+
+    } else {
+        // Stop engine server-side
+        await fetch('/api/playerbot/stop', { method: 'POST' });
+
+        console.log('Playerbot deactivated');
+    }
+});
+
+
+
 
 // --------------------------- FLIP BOARD ---------------------------
 // Handler for flipping board orientation
@@ -127,6 +160,8 @@ flipBtn.addEventListener("click", async () => {
 
     // Flip clocks visually
     flipClocks();
+
+    console.log('Board flipped');
 });
 
 // --------------------------- RESET BOARD ---------------------------
@@ -185,6 +220,9 @@ newGameBtn.addEventListener("click", async () => {
 
     // Reset clock based on time control
     await resetClock({ color, clockTime });
+
+    // Set the playerColor in state
+    state.playerColor = color;
 });
 
 // --------------------------- INITIAL LOAD ---------------------------

@@ -60,6 +60,15 @@ h1 {
   border: 1px solid #333;
 }
 
+.menu-section input[type="number"]{
+  width: 95%;
+  margin-top: 6px;
+  padding: 6px;
+  background: #1f2937;
+  color: #eee;
+  border: 1px solid #333;
+}
+
 .menu-section h3 {
   margin-top: 0;
   margin-bottom: 10px;

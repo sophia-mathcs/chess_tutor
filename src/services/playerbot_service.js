@@ -5,25 +5,51 @@ let state = {
   elo: 800
 }
 
-// Generic POST request helper
+// Generic POST helper
 async function post(endpoint, body = {}) {
+
   const res = await fetch(`${PLAYERBOT_URL}${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   })
+
+  if (!res.ok) {
+    throw new Error(`PlayerBot request failed: ${res.status}`)
+  }
+
   return res.json()
 }
 
+
 // ---------- lifecycle ----------
-exports.start = (elo = 800) => {
+
+exports.start = async (bot_color = "w", elo = 800) => {
+
+  const data = await post('/start', { bot_color, elo })
+
+  state.running = true
   state.elo = elo
-  return post('/start', { elo })
+
+  return data
 }
 
-exports.quit = () => post('/stop')
 
-// ---------- move request ----------
-exports.getMove = (fen, whiteTime = 0, blackTime = 0) => {
-  return post('/get-move', { fen, whiteTime, blackTime })
+exports.quit = async () => {
+
+  const data = await post('/stop')
+
+  state.running = false
+
+  return data
+}
+
+
+// ---------- status ----------
+
+exports.status = () => {
+  return {
+    running: state.running,
+    elo: state.elo
+  }
 }

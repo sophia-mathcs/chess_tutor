@@ -159,3 +159,13 @@ def quit_engine():
     engine_manager.quit()
 
     return {"ok": True}
+
+# ==============================
+# Util
+# ==============================
+
+@app.middleware("http")
+async def log_requests(request, call_next):
+    print("Request:", request.method, request.url.path)
+    response = await call_next(request)
+    return response
