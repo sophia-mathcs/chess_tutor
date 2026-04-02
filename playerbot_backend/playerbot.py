@@ -2,6 +2,12 @@ import chess
 import asyncio
 import random
 
+from bots.base_bot import BaseBot
+from bots.random_bot import RandomBot
+from bots.stockfish_max_strength import StockfishBot
+from bots.maia2_bot import MaiaBot
+from bots.human_bot import HumanBot
+
 
 class ChessBot:
 
@@ -9,6 +15,7 @@ class ChessBot:
         self.color = color
         self.elo = elo
         self.position_id = 0
+        self.engine = MaiaBot(elo)
 
     async def on_fen(self, fen, clock_state, send_move):
 
@@ -20,14 +27,13 @@ class ChessBot:
         if not self._my_turn():
             return
 
-        think_time = self._compute_think_time(clock_state)
-
-        await asyncio.sleep(think_time)
-
         if pid != self.position_id:
             return
 
-        move = self.compute_move()
+        move = self.compute_move(self.board, clock_state)
+        
+        if pid != self.position_id:
+            return
 
         await send_move(move)
 
@@ -41,30 +47,20 @@ class ChessBot:
 
         return False
 
-    def _compute_think_time(self, clock):
+    def _retrieve_times(self, clock):
 
         if not clock:
-            return random.uniform(0.4, 1.0)
+            return 0, 0
 
-        white = clock.get("white", 0)
-        black = clock.get("black", 0)
+        whiteMs = clock.get("white", 0)
+        blackMs = clock.get("black", 0)
 
-        my_time = white if self.color == "w" else black
+        return whiteMs, blackMs
 
-        if my_time > 120:
-            return random.uniform(0.5, 1.5)
+    def compute_move(self, board, clock_state):
 
-        if my_time > 30:
-            return random.uniform(0.3, 0.9)
+        whiteMs, blackMs = self._retrieve_times(clock_state)
 
-        return random.uniform(0.1, 0.4)
-
-    def compute_move(self):
-
-        moves = list(self.board.legal_moves)
-
-        move = random.choice(moves)
-
-        self.board.push(move)
+        move = self.engine.choose_move(board, whiteMs, blackMs)
 
         return move.uci()

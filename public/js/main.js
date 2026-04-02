@@ -204,6 +204,26 @@ export async function resetBoard({ color = 'white'} = {}) {
             });
         }
 
+
+        // Restart playerbot if toggled on
+        if (playerbotToggle.checked) {
+            // Start the bot
+            const bot_color = colorSelect.value === 'white' ? 'b': 'w';
+            await fetch('/api/playerbot/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bot_color: bot_color, elo: 800 })
+            });
+
+            console.log('Playerbot reset, reactivated');
+
+        } else {
+            // Stop bot
+            await fetch('/api/playerbot/stop', { method: 'POST' });
+
+            console.log('Playerbot deactivated');
+        }
+
     } catch (err) {
         console.error('Failed to reset board', err);
     }
