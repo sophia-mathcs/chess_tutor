@@ -18,6 +18,7 @@ import {
     enginePvEl,
     whiteClockEl,
     blackClockEl,
+    eloSelect,
     colorSelect,
     newGameBtn,
     clockSelect,
@@ -120,6 +121,17 @@ engineToggle.addEventListener("change", async () => {
     }
 });
 
+// --------------------------- SELECT ELO ---------------------------
+// Handler for choosing the opposition bot rating
+let elo = 800; // default value
+
+eloSelect.addEventListener("change", (e) => {
+  const val = parseInt(e.target.value, 10);
+
+  if (!Number.isNaN(val)) {
+    elo = val;
+  }
+});
 
 // --------------------------- PLAYERBOT TOGGLE ---------------------------
 // Handler for enabling/disabling theplayerbot
@@ -130,10 +142,10 @@ playerbotToggle.addEventListener("change", async () => {
         await fetch('/api/playerbot/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bot_color: color, elo: 800 })
+            body: JSON.stringify({ bot_color: color, elo: elo })
         });
 
-        console.log('Playerbot activated');
+        console.log('Playerbot activated, elo:', elo);
 
     } else {
         // Stop engine server-side
@@ -212,10 +224,10 @@ export async function resetBoard({ color = 'white'} = {}) {
             await fetch('/api/playerbot/start', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bot_color: bot_color, elo: 800 })
+                body: JSON.stringify({ bot_color: bot_color, elo: elo })
             });
 
-            console.log('Playerbot reset, reactivated');
+            console.log('Playerbot reset, reactivated, elo', elo);
 
         } else {
             // Stop bot
