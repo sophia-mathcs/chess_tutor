@@ -55,7 +55,7 @@ exports.move = (req, res) => {
     status,
   });
 
-  if (tutorService.getState().enabled) {
+  if (tutorService.getState().enabled && req.body.source !== 'bot') {
     const after_fen   = status.fen
     const played_move = from + to + (result.promotion || '')
     ;(async () => {
