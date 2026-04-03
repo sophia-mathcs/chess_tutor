@@ -3,7 +3,7 @@ import chess.engine
 import threading
 import time
 
-ENGINE_PATH = "../engines/stockfish/stockfish-macos-m1-apple-silicon"
+ENGINE_PATH = "../../engines/stockfish/stockfish-windows-x86-64-avx2.exe"
 
 class EngineManager:
 

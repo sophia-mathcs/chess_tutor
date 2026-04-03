@@ -23,9 +23,12 @@ import {
     clockSelect,
     engineToggle,
     playerbotToggle,
+    tutorToggle,
     flipBtn,
     evalBar
 } from './domRefs.js';
+
+import { clearTutorPanel } from './tutor.js';
 
 // Initialize DOM references (if any setup needed)
 initDOMRefs();
@@ -144,6 +147,25 @@ playerbotToggle.addEventListener("change", async () => {
 });
 
 
+
+
+// --------------------------- TUTOR TOGGLE ---------------------------
+tutorToggle.addEventListener("change", async () => {
+    const badge = document.getElementById('tutor-status')
+    if (tutorToggle.checked) {
+        await fetch('/api/tutor/enable', { method: 'POST' })
+        badge.textContent = 'On'
+        badge.className = 'tutor-badge tutor-on'
+        document.getElementById('hint-text').textContent = 'Tutor active. Make a move to get feedback.'
+        console.log('Tutor activated')
+    } else {
+        await fetch('/api/tutor/disable', { method: 'POST' })
+        badge.textContent = 'Off'
+        badge.className = 'tutor-badge tutor-off'
+        clearTutorPanel()
+        console.log('Tutor deactivated')
+    }
+})
 
 
 // --------------------------- FLIP BOARD ---------------------------

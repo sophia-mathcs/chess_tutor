@@ -22,6 +22,9 @@ export function connect() {
             case 'engineUpdate':
                 handleEngineUpdate(cmd.lines);
             break;
+            case 'tutorUpdate':
+                import('./tutor.js').then(t => t.handleTutorUpdate(cmd));
+            break;
             case 'flip':
                 import('./board.js').then(b => b.flipBoard());
             break;

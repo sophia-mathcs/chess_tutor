@@ -312,4 +312,22 @@ h1 {
 #hint-text {
   font-size: 0.9rem;
   color: #ccc;
+  line-height: 1.5;
+}
+
+.tutor-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+.tutor-on  { background: #166534; color: #bbf7d0; }
+.tutor-off { background: #374151; color: #9ca3af; }
+
+#hint-text.tutor-thinking {
+  color: #6b7280;
+  font-style: italic;
 }
