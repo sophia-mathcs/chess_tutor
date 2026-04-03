@@ -15,7 +15,7 @@ class ChessBot:
         self.color = color
         self.elo = elo
         self.position_id = 0
-        self.engine = MaiaBot(elo)
+        self.engine = HumanBot(elo)
 
     async def on_fen(self, fen, clock_state, send_move):
 
