@@ -190,6 +190,17 @@ flipBtn.addEventListener("click", async () => {
 // Resets the board and optionally sets orientation
 export async function resetBoard({ color = 'white'} = {}) {
     try {
+        // Reset engine display
+        engineDepthEl.textContent = '-'
+        engineEvalEl.textContent = '-'
+        engineBestMoveEl.textContent = '-'
+        enginePvEl.textContent = engineToggle.checked ? 'Analyzing...' : '-'
+
+        // Reset tutor display
+        document.getElementById('hint-text').textContent = tutorToggle.checked
+            ? 'Tutor active. Make a move to get feedback.'
+            : 'Enable Tutor to receive move explanations.'
+
         // Destroy existing board for a clean start
         if (state.ground) {
             state.lastBoardStatus = null;
