@@ -28,7 +28,7 @@ import {
     evalBar
 } from './domRefs.js';
 
-import { clearTutorPanel } from './tutor.js';
+import { clearTutorPanel, setEnabled as setTutorEnabled } from './tutor.js';
 
 // Initialize DOM references (if any setup needed)
 initDOMRefs();
@@ -154,12 +154,14 @@ tutorToggle.addEventListener("change", async () => {
     const badge = document.getElementById('tutor-status')
     if (tutorToggle.checked) {
         await fetch('/api/tutor/enable', { method: 'POST' })
+        setTutorEnabled(true)
         badge.textContent = 'On'
         badge.className = 'tutor-badge tutor-on'
         document.getElementById('hint-text').textContent = 'Tutor active. Make a move to get feedback.'
         console.log('Tutor activated')
     } else {
         await fetch('/api/tutor/disable', { method: 'POST' })
+        setTutorEnabled(false)
         badge.textContent = 'Off'
         badge.className = 'tutor-badge tutor-off'
         clearTutorPanel()

@@ -18,6 +18,7 @@ export function connect() {
             case 'setFen':
                 applyStatus(cmd.status);
                 manageClocks(cmd.status);
+                import('./tutor.js').then(t => t.onMoveMade());
             break;
             case 'engineUpdate':
                 handleEngineUpdate(cmd.lines);

@@ -1,3 +1,13 @@
+let enabled = false
+
+export function setEnabled(val) {
+    enabled = val
+}
+
+export function onMoveMade() {
+    if (enabled) showTutorThinking()
+}
+
 export function handleTutorUpdate(cmd) {
     const el = document.getElementById('hint-text')
     if (!el) return
