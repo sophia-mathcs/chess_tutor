@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chessground Remote Board</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessground@8.3.10/assets/chessground.base.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessground@8.3.10/assets/chessground.brown.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessground@8.3.10/assets/chessground.cburnett.css">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="layout">
+
+    <!-- LEFT MENU -->
+    <div class="menu">
+
+      <h2>Menu</h2>
+
+      <div class="menu-section">
+
+        <h3>Board Controls</h3>
+
+        <div class="menu-controls">
+
+          <label class="control">
+            <input type="checkbox" id="toggle-engine">
+            <span>Engine</span>
+          </label>
+
+          <div class="control">
+            <input type="checkbox" id="toggle-bot">
+            <span>Bot</span>
+          </div>
+
+          <div class="control">
+            <button class="control-btn" id="flip-board-btn"></button>
+            <span>Flip Board</span>
+          </div>
+
+        </div>
+
+      </div>
+
+      <hr>
+
+      <div class="menu-section">
+        <h3>New Game</h3>
+
+        <label>
+          Clock Time
+          <select id="clock-select">
+            <option value="0">No Clock</option>
+            <option value="60">1 min</option>
+            <option value="180">3 min</option>
+            <option value="300">5 min</option>
+            <option value="600">10 min</option>
+          </select>
+        </label>
+
+        <label>
+          Color
+          <select id="color-select">
+            <option value="white">White</option>
+            <option value="black">Black</option>
+            <option value="random">Random</option>
+          </select>
+        </label>
+
+        <label>
+          Elo
+          <input
+            id="elo-select"
+            type="number"
+            name="elo-field"
+            min="0"
+            max="3000"
+            step="100"
+            value="800">
+        </label>
+        <p style="font-size: 9px;">
+          Reference Values:<br>
+          Beginner (100), Amateur (800), Intermediate (1400),<br>
+          Advanced (1800), Expert (2000), Master (2200+),<br>
+          Grandmaster (2500), SuperGM (2700), Engine (3000+)
+        </p>
+
+        <button class="button-newgame" id="new-game-btn">Start New Game</button>
+      </div>
+
+    </div>
+
+    <!-- BOARD AREA -->
+    <div class="board-area">
+
+      <h1>Chessground Remote Board</h1>
+
+      <p class="status" id="status">Connecting…</p>
+
+      <div class="board-container">
+
+        <!-- BOARD + CLOCKS + EVAL BAR -->
+        <div class="board-column">
+
+          <!-- OPPONENT CLOCK -->
+          <div class="clock clock-top">
+            <span id="clock-black">--:--</span>
+          </div>
+
+          <!-- BOARD ROW -->
+          <div class="board-row">
+
+            <div class="eval-bar" id="eval-bar">
+              <div class="eval-fill" id="eval-fill"></div>
+            </div>
+
+            <div class="board-wrap" id="board"></div>
+
+          </div>
+
+          <!-- PLAYER CLOCK -->
+          <div class="clock clock-bottom">
+            <span id="clock-white">--:--</span>
+          </div>
+
+          <!-- FEN DISPLAY -->
+          <div class="fen-panel">
+            <div class="fen-label">FEN</div>
+            <div class="fen-value" id="fen-display">
+              rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ENGINE PANEL -->
+    <div class="engine-panel">
+
+      <div class="engine-output">
+        <h3>Engine</h3>
+
+        <div class="engine-info">
+          <div>Depth: <span id="engine-depth">-</span></div>
+          <div>Eval: <span id="engine-eval">-</span></div>
+          <div>Best Move: <span id="engine-bestmove">-</span></div>
+        </div>
+
+        <div class="engine-pv" id="engine-pv">
+          Waiting for engine...
+        </div>
+      </div>
+
+      <div class="hint-panel">
+        <h3>Hints</h3>
+        <div id="hint-text">
+          Engine hints will appear here.
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "chessground": "https://cdn.jsdelivr.net/npm/chessground@8.3.10/chessground.js"
+    }
+  }
+  </script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
