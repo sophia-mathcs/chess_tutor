@@ -206,7 +206,8 @@ Explain the move, why it was {classification}, and what the better plan was.{nov
         )
         text = resp.choices[0].message.content.strip()
         text = text.replace("**", "").replace("*", "")
-        # print(f"\n[TUTOR] novice={novice}\n{text}\n")
+        if not text:
+            text = "The engine could not generate an explanation for this move."
         self._conv_messages = messages + [{"role": "assistant", "content": text}]
         return text
 
@@ -222,7 +223,8 @@ Explain the move, why it was {classification}, and what the better plan was.{nov
         )
         text = resp.choices[0].message.content.strip()
         text = text.replace("**", "").replace("*", "")
-        # print(f"\n[TUTOR FOLLOWUP]\n{text}\n")
+        if not text:
+            text = "Sorry, no response was generated."
         self._conv_messages = messages + [{"role": "assistant", "content": text}]
         return text
 

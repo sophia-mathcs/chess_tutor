@@ -47,6 +47,7 @@ exports.move = (req, res) => {
     type: 'setFen',
     fen: status.fen,
     status,
+    source: req.body.source || 'player',
   });
 
   res.json({
