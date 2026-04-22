@@ -1,10 +1,7 @@
 import os
 import chess
 import chess.engine
-try:
-    from openai import OpenAI
-except Exception:
-    OpenAI = None
+from openai import OpenAI
 
 ENGINE_PATH = "../../engines/stockfish/stockfish-windows-x86-64-avx2.exe"
 TUTOR_DEPTH = 12
@@ -18,13 +15,10 @@ PIECE_VALUES = {
 class TutorAnalyzer:
     def __init__(self):
         self.engine = chess.engine.SimpleEngine.popen_uci(ENGINE_PATH)
-        self.llm = None
-        api_key = os.environ.get("DUKE_API_KEY")
-        if OpenAI is not None and api_key:
-            self.llm = OpenAI(
-                api_key=api_key,
-                base_url="https://litellm.oit.duke.edu/v1",
-            )
+        self.llm = OpenAI(
+            api_key=os.getenv("DUKE_API_KEY"),
+            base_url="https://litellm.oit.duke.edu/v1",
+        )
         self._conv_messages = []
 
     def analyze(self, before_fen: str, after_fen: str, played_move: str, novice: bool = False) -> str:
@@ -48,32 +42,9 @@ class TutorAnalyzer:
         move_facts = self._move_facts(before_board, played_move, best_move)
         legal_sans = self._legal_moves_san(before_board)
 
-        if self.llm is None:
-            return self._fallback_explanation(
-                played_move, best_move, eval_before, eval_after, delta, classification, facts
-            )
-
         return self._call_llm(before_fen, played_move, best_move, pv,
                               eval_before, eval_after, delta, classification,
                               facts, move_facts, legal_sans, novice)
-
-    def _fallback_explanation(
-        self, played_move, best_move, eval_before, eval_after, delta, classification, facts
-    ) -> str:
-        mover = facts["turn"]
-        cp_lost = max(0, int(-delta))
-        if classification == "fine":
-            return (
-                f"{mover} played {played_move}, and the move is sound. "
-                f"The evaluation changed from {eval_before/100:+.2f} to {eval_after/100:+.2f}. "
-                f"The engine best move is {best_move}; compare it to learn a cleaner plan."
-            )
-        return (
-            f"{mover} played {played_move}, classified as a {classification} "
-            f"(about {cp_lost} centipawns lost). "
-            f"The position evaluation shifted from {eval_before/100:+.2f} to {eval_after/100:+.2f}. "
-            f"A stronger continuation was {best_move}; review that line to improve this phase."
-        )
 
     def _classify(self, delta: int) -> str:
         cp_lost = -delta
@@ -170,7 +141,7 @@ class TutorAnalyzer:
             return f"{cp / 100:+.2f}"
 
         def move_desc(mf):
-            parts = [f"{mf['piece'].capitalize()} {mf['from']}->{mf['to']}"]
+            parts = [f"{mf['piece'].capitalize()} {mf['from']}→{mf['to']}"]
             if mf["captures"]:
                 parts.append(f"captures {mf['captures']}")
             if mf["gives_check"]:

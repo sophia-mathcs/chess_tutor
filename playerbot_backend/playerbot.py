@@ -5,7 +5,7 @@ import random
 from bots.base_bot import BaseBot
 from bots.random_bot import RandomBot
 from bots.stockfish_max_strength import StockfishBot
-# from bots.maia2_bot import MaiaBot
+from bots.maia2_bot import MaiaBot
 from bots.human_bot import HumanBot
 from bots.human_bot_trained import HumanBotTrainedPolicy
 
