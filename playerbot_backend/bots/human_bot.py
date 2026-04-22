@@ -6,7 +6,6 @@ import math
 import warnings
 
 from bots.base_bot import BaseBot
-from maia2 import model, inference
 
 warnings.filterwarnings("ignore")
 
@@ -65,6 +64,7 @@ class MaiaEngine:
         self.elo = clamp(elo, 0, 2000)
 
         if MaiaEngine.shared_model is None:
+            from maia2 import model, inference
             print("Loading Maia-2 model...")
             MaiaEngine.shared_model = model.from_pretrained(
                 type="rapid",
@@ -81,6 +81,7 @@ class MaiaEngine:
         self.elo_oppo = self.elo
 
     def sample_move(self, board, topk):
+        from maia2 import inference
 
         fen = board.fen()
 
@@ -130,7 +131,6 @@ class StockfishEngine:
     def __init__(self, elo):
 
         self.engine = chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH)
-        
 
         self.engine.configure({
             "Threads": 1,
@@ -178,12 +178,55 @@ class HumanBot(BaseBot):
 
         self.elo = elo
 
-        self.maia_blunder = MaiaEngine(elo - 300)
-        self.maia_main = MaiaEngine(elo)
+        self.maia_blunder = None
+        self.maia_main = None
+        try:
+            self.maia_blunder = MaiaEngine(elo - 300)
+            self.maia_main = MaiaEngine(elo)
+        except Exception as e:
+            print(f"Maia init failed, fallback to stockfish-only mode: {e}")
 
         self.stockfish = StockfishEngine(elo)
 
+    def estimate_think_time(self, board, whiteMs, blackMs, use_clock=True):
+        if board.turn == chess.WHITE:
+            my_ms = max(0, int(whiteMs))
+        else:
+            my_ms = max(0, int(blackMs))
+
+        remaining_pieces = len(board.piece_map())
+        piece_factor = clamp((32 - remaining_pieces) / 30.0, 0.0, 1.0)
+        move_factor = clamp(board.ply() / 80.0, 0.0, 1.0)
+        complexity = 0.65 * piece_factor + 0.35 * move_factor
+
+        elo_factor = clamp((self.elo - 800) / 2000.0, 0.0, 1.0)
+
+        if use_clock:
+            time_factor = clamp(my_ms / (5 * 60 * 1000), 0.0, 1.0)
+            seconds = (
+                0.80
+                + 1.40 * elo_factor
+                + 1.60 * complexity
+                + 1.20 * time_factor
+            )
+            max_by_clock = max(1.0, my_ms / 1000.0 * 0.25)
+            return clamp(seconds, 1.0, min(10.0, max_by_clock))
+
+        seconds = (
+            0.80
+            + 1.50 * elo_factor
+            + 1.80 * complexity
+        )
+        return clamp(seconds, 1.0, 8.0)
+
     def choose_move(self, board, whiteMs, blackMs):
+        if self.maia_blunder is None or self.maia_main is None:
+            return self.stockfish.sample_move(
+                board,
+                stockfish_topk(self.elo),
+                whiteMs,
+                blackMs
+            )
 
         r1 = random.random()
 

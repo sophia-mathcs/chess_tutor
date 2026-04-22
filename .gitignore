@@ -1,9 +1,12 @@
 node_modules/
+.venv/
 __pycache__
 **/__pycache__/
 engines/*/
 data/*
+data/
 .env
 *.log
 .DS_Store
-data/
+.run_logs/
+.run_pids/

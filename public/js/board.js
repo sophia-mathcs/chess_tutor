@@ -21,7 +21,6 @@ export function createBoard(color = 'white') {
 
 // Apply a new game status to the board
 export function applyStatus(status) {
-    // Avoid re-applying the same status to prevent unnecessary updates and potential animation glitches
     if (
     state.lastBoardStatus &&
     state.lastBoardStatus.fen === status.fen &&
@@ -31,7 +30,6 @@ export function applyStatus(status) {
     return;
     }
 
-    // Log the status being applied for debugging purposes
     console.log("APPLY STATUS", {
     fen: status.fen,
     turn: status.turn,
@@ -43,10 +41,8 @@ export function applyStatus(status) {
     const destEntries = Object.entries(status.dests || {});
     const destsMap = new Map(destEntries.map(([from, tos]) => [from, tos]));
 
-    // clear any square selection first
     state.ground.set({ selected: undefined });
 
-    // Update the board position and legal moves based on the new status
     state.ground.set({
     fen: status.fen,
     turnColor: status.turn,
@@ -57,10 +53,8 @@ export function applyStatus(status) {
     }
     });
 
-    // Update status text
     updateStatusText(status);
 
-    // Update FEN display
     if (fenDisplay) fenDisplay.textContent = status.fen;
 }
 

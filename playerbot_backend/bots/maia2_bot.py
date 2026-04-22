@@ -11,8 +11,6 @@ print("SYS", sys.executable)
 
 warnings.filterwarnings("ignore")
 
-from pathlib import Path
-
 root = Path(__file__).resolve().parent.parent.parent.parent
 
 MAIA_PATH = f"{root}/engines/maia2"
@@ -27,12 +25,10 @@ class MaiaBot(BaseBot):
         self.elo_self = elo
         self.elo_oppo = elo
 
-        # Load Maia-2 model
         print("Loading Maia-2...")
         self.model = model.from_pretrained(type="rapid", device=device, save_root=save_root)
         print("Maia-2 loaded.")
 
-        # Prepare inference helper
         self.prepared = inference.prepare()
         print("Inference preped.")
 
@@ -45,7 +41,6 @@ class MaiaBot(BaseBot):
 
         fen = board.fen()
 
-        # Run inference
         move_probs, win_prob = inference.inference_each(
             self.model,
             self.prepared,
@@ -54,15 +49,12 @@ class MaiaBot(BaseBot):
             self.elo_oppo
         )
 
-        # Filter to legal moves
         legal_moves = [m.uci() for m in board.legal_moves]
         legal_probs = {move: prob for move, prob in move_probs.items() if move in legal_moves}
 
         if not legal_probs:
-            # fallback random legal move
             return np.random.choice(list(board.legal_moves))
 
-        # Normalize probabilities
         total = sum(legal_probs.values())
         for k in legal_probs:
             legal_probs[k] /= total

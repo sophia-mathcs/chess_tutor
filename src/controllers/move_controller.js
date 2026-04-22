@@ -34,7 +34,6 @@ exports.move = (req, res) => {
 
   const status = buildStatus(game);
 
-  // If the engine is running, update its position to the new game state
   const fen = status.fen
 
   engineService.setPosition(fen)

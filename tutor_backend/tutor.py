@@ -16,7 +16,7 @@ class TutorAnalyzer:
     def __init__(self):
         self.engine = chess.engine.SimpleEngine.popen_uci(ENGINE_PATH)
         self.llm = OpenAI(
-            api_key="sk-2ZydGeXgPd_MAmFNHJiVQw",
+            api_key=os.getenv("DUKE_API_KEY"),
             base_url="https://litellm.oit.duke.edu/v1",
         )
         self._conv_messages = []

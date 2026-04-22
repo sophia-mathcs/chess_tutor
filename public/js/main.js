@@ -1,12 +1,7 @@
 // main.js
-// This file orchestrates the entire chessboard UI, engine, clock, and user interactions.
-
-
-// Import application state object
 import { state } from './state.js';
 
-// Import DOM references
-import { 
+import {
     initDOMRefs,
     boardEl,
     statusEl,
@@ -31,25 +26,19 @@ import {
 
 import { clearTutorPanel, setEnabled as setTutorEnabled } from './tutor.js';
 
-// Initialize DOM references (if any setup needed)
 initDOMRefs();
 
-// --------------------------- CLOCK MODULE ---------------------------
-// Import clock helpers
-import { 
-    renderClock, 
-    syncClockState, 
-    resetClock 
+import {
+    renderClock,
+    syncClockState,
+    resetClock
 } from './clock.js';
 
-// Sync the clock state with server, then start rendering loop
 syncClockState().then(() => {
-    renderClock(); // This starts the continuous clock rendering loop
+    renderClock();
 });
 
-// --------------------------- BOARD MODULE ---------------------------
-// Import board functions
-import { 
+import {
     createBoard,
     applyStatus,
     flipClocks,
@@ -58,25 +47,17 @@ import {
     drawBestMove
 } from './board.js';
 
-// Initialize Chessground board instance
 createBoard();
 
-// --------------------------- PLAYERS MODULE ---------------------------
-// Import user move handler
 import { onUserMove } from './players.js';
 
-// --------------------------- SSE MODULE ---------------------------
-// Import server-sent events connection handler
 import { connect } from './sse.js';
 
-// --------------------------- INITIAL STATE ---------------------------
-// Load the initial board state from the server
 async function loadInitialState() {
     try {
         const res = await fetch('/api/board/state');
         const data = await res.json();
         if (data && data.status) {
-            // Apply initial status to board and UI
             applyStatus(data.status);
         }
     } catch (err) {
@@ -94,17 +75,14 @@ function saveToggleState() {
 }
 
 // --------------------------- ENGINE TOGGLE ---------------------------
-// Handler for enabling/disabling the engine
 engineToggle.addEventListener("change", async () => {
     if (engineToggle.checked) {
-        // Show evaluation UI and reset engine info
         evalBar.classList.remove("hidden");
         enginePvEl.textContent = "Analyzing...";
         engineEvalEl.textContent = "-";
         engineBestMoveEl.textContent = "-";
         engineDepthEl.textContent = "-";
 
-        // Start the engine with current FEN
         await fetch('/api/engine/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -114,17 +92,14 @@ engineToggle.addEventListener("change", async () => {
         console.log('Engine activated');
 
     } else {
-        // Hide eval UI and reset engine info
         evalBar.classList.add("hidden");
         enginePvEl.textContent = "-";
         engineEvalEl.textContent = "-";
         engineBestMoveEl.textContent = "-";
         engineDepthEl.textContent = "-";
 
-        // Remove board arrows
         state.ground.set({ drawable: { autoShapes: [] } });
 
-        // Stop engine server-side
         await fetch('/api/engine/stop', { method: 'POST' });
 
         console.log('Engine deactivated');
@@ -133,8 +108,7 @@ engineToggle.addEventListener("change", async () => {
 });
 
 // --------------------------- SELECT ELO ---------------------------
-// Handler for choosing the opposition bot rating
-let elo = 800; // default value
+let elo = 800;
 
 eloSelect.addEventListener("change", (e) => {
   const val = parseInt(e.target.value, 10);
@@ -146,10 +120,8 @@ eloSelect.addEventListener("change", (e) => {
 });
 
 // --------------------------- PLAYERBOT TOGGLE ---------------------------
-// Handler for enabling/disabling theplayerbot
 playerbotToggle.addEventListener("change", async () => {
     if (playerbotToggle.checked) {
-        // Start the engine with current FEN
         const color = colorSelect.value === 'white' ? 'b': 'w';
         await fetch('/api/playerbot/start', {
             method: 'POST',
@@ -160,15 +132,12 @@ playerbotToggle.addEventListener("change", async () => {
         console.log('Playerbot activated, elo:', elo);
 
     } else {
-        // Stop engine server-side
         await fetch('/api/playerbot/stop', { method: 'POST' });
 
         console.log('Playerbot deactivated');
     }
     saveToggleState();
 });
-
-
 
 
 // --------------------------- NOVICE TOGGLE ---------------------------
@@ -210,9 +179,7 @@ tutorToggle.addEventListener("change", async () => {
 
 
 // --------------------------- FLIP BOARD ---------------------------
-// Handler for flipping board orientation
 flipBtn.addEventListener("click", async () => {
-    // Call backend flip API
     const res = await fetch('/api/board/flip', { method: 'POST' });
     const data = await res.json();
 
@@ -221,14 +188,12 @@ flipBtn.addEventListener("click", async () => {
         return;
     }
 
-    // Flip clocks visually
     flipClocks();
 
     console.log('Board flipped');
 });
 
 // --------------------------- RESET BOARD ---------------------------
-// Resets the board and optionally sets orientation
 export async function resetBoard({ color = 'white'} = {}) {
     try {
         // Reset engine display
@@ -242,34 +207,28 @@ export async function resetBoard({ color = 'white'} = {}) {
             ? 'Tutor active. Make a move to get feedback.'
             : 'Enable Tutor to receive move explanations.'
 
-        // Destroy existing board for a clean start
         if (state.ground) {
             state.lastBoardStatus = null;
             state.ground.destroy();
         }
 
-        // Create new board with selected color
         createBoard(color);
 
-        // Call backend to reset server-side board
         const res = await fetch('/api/board/reset', { method: 'POST' });
         const data = await res.json();
 
         if (!res.ok) console.log("RESET FAILED", data);
 
-        // Apply initial board state
         await loadInitialState();
 
-        // Force orientation of board and clock if needed
         const orientation = color === 'white' ? 'white' : color === 'black' ? 'black' : data.status.turn;
         if (state.ground.state.orientation !== orientation) {
             state.ground.set({ orientation });
         }
         if (orientation === 'black' && state.clocksFlipped !== true) {
             flipClocks();
-        } 
+        }
 
-        // Restart engine if toggled on
         if (engineToggle.checked) {
             await fetch('/api/engine/start', {
                 method: 'POST',
@@ -278,10 +237,7 @@ export async function resetBoard({ color = 'white'} = {}) {
             });
         }
 
-
-        // Restart playerbot if toggled on
         if (playerbotToggle.checked) {
-            // Start the bot
             const bot_color = colorSelect.value === 'white' ? 'b': 'w';
             await fetch('/api/playerbot/start', {
                 method: 'POST',
@@ -292,7 +248,6 @@ export async function resetBoard({ color = 'white'} = {}) {
             console.log('Playerbot reset, reactivated, elo', elo);
 
         } else {
-            // Stop bot
             await fetch('/api/playerbot/stop', { method: 'POST' });
 
             console.log('Playerbot deactivated');
@@ -304,79 +259,70 @@ export async function resetBoard({ color = 'white'} = {}) {
 }
 
 // --------------------------- NEW GAME BUTTON ---------------------------
-// Starts a new game with selected color and clock
 newGameBtn.addEventListener("click", async () => {
     const color = colorSelect.value;
     const clockTime = parseInt(clockSelect.value, 10);
 
-    // Reset the board first
     await resetBoard({ color });
 
-    // Reset clock based on time control
     await resetClock({ color, clockTime });
 
-    // Set the playerColor in state
     state.playerColor = color;
 });
 
-// --------------------------- RESTORE TOGGLE STATE ---------------------------
-async function restoreToggleState() {
-    const savedElo = parseInt(localStorage.getItem('elo'), 10)
-    if (!isNaN(savedElo)) {
-        elo = savedElo
-        eloSelect.value = savedElo
-    }
+// --------------------------- INITIAL LOAD (reset on refresh) ---------------------------
+async function resetSessionOnRefresh() {
+    try {
+        // Reset UI controls to defaults
+        colorSelect.value = 'white';
+        clockSelect.value = '0';
+        eloSelect.value = '800';
+        elo = 800;
 
-    const noviceOn = localStorage.getItem('toggle_novice') === 'true'
-    if (noviceOn) {
-        noviceToggle.checked = true
-        await fetch('/api/tutor/novice', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ novice: true })
-        })
-    }
+        engineToggle.checked = false;
+        playerbotToggle.checked = false;
+        tutorToggle.checked = false;
+        noviceToggle.checked = false;
 
-    const tutorOn = localStorage.getItem('toggle_tutor') === 'true'
-    if (tutorOn) {
-        tutorToggle.checked = true
+        // Reset tutor badge and panel
         const badge = document.getElementById('tutor-status')
-        await fetch('/api/tutor/enable', { method: 'POST' })
-        setTutorEnabled(true)
-        badge.textContent = 'On'
-        badge.className = 'tutor-badge tutor-on'
-        document.getElementById('hint-text').textContent = 'Tutor active. Make a move to get feedback.'
-    }
+        if (badge) { badge.textContent = 'Off'; badge.className = 'tutor-badge tutor-off'; }
+        document.getElementById('hint-text').textContent = 'Enable Tutor to receive move explanations.';
+        document.getElementById('followup-area').style.display = 'none';
+        setTutorEnabled(false);
 
-    const engineOn = localStorage.getItem('toggle_engine') === 'true'
-    if (engineOn && state.lastBoardStatus) {
-        engineToggle.checked = true
-        evalBar.classList.remove('hidden')
-        enginePvEl.textContent = 'Analyzing...'
-        engineEvalEl.textContent = '-'
-        engineBestMoveEl.textContent = '-'
-        engineDepthEl.textContent = '-'
-        await fetch('/api/engine/start', {
+        // Reset engine display
+        evalBar.classList.add('hidden');
+        enginePvEl.textContent = '-';
+        engineEvalEl.textContent = '-';
+        engineBestMoveEl.textContent = '-';
+        engineDepthEl.textContent = '-';
+        updateEvalBar(0);
+
+        // Reset clock UI state
+        state.clockStatus.on = false;
+        state.clockStatus.started = false;
+        state.clockStatus.clockExpired = false;
+        state.ground?.set({ drawable: { autoShapes: [] } });
+
+        // Reset backend services
+        await fetch('/api/playerbot/stop', { method: 'POST' });
+        await fetch('/api/engine/stop', { method: 'POST' });
+        await fetch('/api/tutor/disable', { method: 'POST' });
+        await fetch('/api/board/reset', { method: 'POST' });
+        await fetch('/api/clock/stop', { method: 'POST' });
+        await fetch('/api/clock/reset', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fen: state.lastBoardStatus.fen })
-        })
-    }
+            body: JSON.stringify({ time: 0, startingTurn: 'white' })
+        });
 
-    const botOn = localStorage.getItem('toggle_bot') === 'true'
-    if (botOn) {
-        playerbotToggle.checked = true
-        const color = colorSelect.value === 'white' ? 'b' : 'w'
-        await fetch('/api/playerbot/start', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bot_color: color, elo: elo })
-        })
+    } catch (err) {
+        console.warn('Failed to reset session on refresh', err);
     }
 }
 
-// --------------------------- INITIAL LOAD ---------------------------
-// Load initial state and connect SSE
-loadInitialState().then(() => restoreToggleState());
-resetClock({ color:'white', clockTime: 'No Clock'})
-connect();
+resetSessionOnRefresh()
+    .then(() => loadInitialState())
+    .then(() => resetClock({ color: 'white', clockTime: 0 }))
+    .finally(() => connect());

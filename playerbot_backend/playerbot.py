@@ -5,7 +5,7 @@ import random
 from bots.base_bot import BaseBot
 from bots.random_bot import RandomBot
 from bots.stockfish_max_strength import StockfishBot
-# from bots.maia2_bot import MaiaBot
+from bots.maia2_bot import MaiaBot
 from bots.human_bot import HumanBot
 from bots.human_bot_trained import HumanBotTrainedPolicy
 
@@ -16,9 +16,14 @@ class ChessBot:
         self.color = color
         self.elo = elo
         self.position_id = 0
+        self.last_fen = None
         self.engine = HumanBotTrainedPolicy(elo)
 
     async def on_fen(self, fen, clock_state, send_move):
+        # Ignore duplicate positions to prevent double moves
+        if fen == self.last_fen:
+            return
+        self.last_fen = fen
 
         self.board = chess.Board(fen)
 
@@ -32,7 +37,7 @@ class ChessBot:
             return
 
         move = self.compute_move(self.board, clock_state)
-        
+
         if pid != self.position_id:
             return
 

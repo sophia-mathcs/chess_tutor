@@ -37,6 +37,14 @@ async def fetch_clock():
                 return None
 
 
+async def fetch_current_fen():
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f"{SERVER}/api/board/state") as resp:
+            try:
+                data = await resp.json()
+                return (data.get("status") or {}).get("fen")
+            except:
+                return None
 
 
 RETRY_SECONDS = 5
@@ -50,7 +58,7 @@ async def listen_sse():
             async with aiohttp.ClientSession() as session:
 
                 async with session.get(f"{SERVER}/api/general/stream") as resp:
-                    
+
                     print("caught the stream")
 
                     async for raw in resp.content:
@@ -98,12 +106,19 @@ async def start_bot(req: BotStartRequest):
     global bot
     bot = ChessBot(req.bot_color, req.elo)
 
+    # Trigger one immediate evaluation so bot can move right after enabling,
+    # without waiting for the next SSE board update.
+    fen = await fetch_current_fen()
+    if fen:
+        clock = await fetch_clock()
+        asyncio.create_task(bot.on_fen(fen, clock, send_move))
+
     return {"status": "started", "color": req.bot_color}
 
 
 @app.post("/playerbot/stop")
 async def stop_bot():
-    
+
     print("Bot deactivated")
 
     global bot
@@ -118,10 +133,6 @@ async def startup():
     asyncio.create_task(listen_sse())
 
 
-
-# ==============================
-# Util
-# ==============================
 @app.middleware("http")
 async def log_requests(request, call_next):
     print("Request:", request.method, request.url.path)

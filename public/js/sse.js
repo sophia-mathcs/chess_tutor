@@ -54,7 +54,6 @@ async function manageClocks(status){
 
             await syncClockState();
 
-            // Log the attempted clock start for debugging purposes
             console.log("CLOCK START", data);
         }
 
@@ -62,13 +61,10 @@ async function manageClocks(status){
             method: 'POST'
         });
 
-
-        // Switch turn on the clock after a move is made
         const data = await res.json();
 
         await syncClockState();
 
-        // Log the attempted clock switch for debugging purposes
         console.log("CLOCK SWITCH", data);
     }
 }

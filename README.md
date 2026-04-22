@@ -8,3 +8,6 @@ In one terminal:
 uvicorn main:app --port 8000
 In second terminal:
 node server.js
+
+Use the script to start all services: 
+./start_all_services.sh --api-key "Your API_KEY"

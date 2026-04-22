@@ -10,7 +10,7 @@ tutor_analyzer = TutorAnalyzer()
 class AnalyzeRequest(BaseModel):
     before_fen:  str
     after_fen:   str
-    played_move: str  # UCI notation, e.g. "e2e4"
+    played_move: str
     novice: bool = False
 
 
