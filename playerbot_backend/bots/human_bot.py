@@ -16,7 +16,7 @@ warnings.filterwarnings("ignore")
 ############################################
 
 MAIA_PATH = "../engines/maia2"
-STOCKFISH_PATH = "../engines/stockfish/stockfish-macos-m1-apple-silicon"
+STOCKFISH_PATH = "../engines/stockfish/stockfish-windows-x86-64-avx2.exe"
 
 
 ############################################

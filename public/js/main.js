@@ -59,7 +59,7 @@ import {
 } from './board.js';
 
 // Initialize Chessground board instance
-createBoard(boardEl); 
+createBoard();
 
 // --------------------------- PLAYERS MODULE ---------------------------
 // Import user move handler
@@ -222,7 +222,7 @@ export async function resetBoard({ color = 'white'} = {}) {
         }
 
         // Create new board with selected color
-        createBoard(boardEl, color);
+        createBoard(color);
 
         // Call backend to reset server-side board
         const res = await fetch('/api/board/reset', { method: 'POST' });

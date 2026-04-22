@@ -17,7 +17,7 @@ from feature_extractor import build_features
 
 root = Path(__file__).resolve().parent.parent.parent
 
-STOCKFISH_PATH = f"{root}/engines/stockfish/stockfish-macos-m1-apple-silicon"
+STOCKFISH_PATH = f"{root}/engines/stockfish/stockfish-windows-x86-64-avx2.exe"
 
 PGN_PATH = f"{root}/playerbot_backend/data/lichess_games.pgn"
 

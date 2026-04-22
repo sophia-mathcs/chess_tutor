@@ -14,16 +14,17 @@ warnings.filterwarnings("ignore")
 
 from pathlib import Path
 
-root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent   # chess_tutor/
+engines_root = project_root.parent                              # Sta 561 Chess/
 
 
 ############################################
 # Paths
 ############################################
 
-MAIA_PATH = f"{root}/engines/maia2"
-STOCKFISH_PATH = f"{root}/engines/stockfish/stockfish-macos-m1-apple-silicon"
-POLICY_PATH = f"{root}/playerbot_backend/models/engine_policy_v1.npz"
+MAIA_PATH = f"{engines_root}/engines/maia2"
+STOCKFISH_PATH = f"{engines_root}/engines/stockfish/stockfish-windows-x86-64-avx2.exe"
+POLICY_PATH = f"{project_root}/playerbot_backend/models/engine_policy_v1.npz"
 
 
 ############################################
