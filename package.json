@@ -1,0 +1,17 @@
+{
+  "name": "chessground-api",
+  "version": "1.0.0",
+  "description": "Simple API to control chessground board from your computer",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "@lichess-org/chessground": "^10.1.0",
+    "chess": "^1.5.1",
+    "chess.js": "^1.4.0",
+    "express": "^4.22.1",
+    "stockfish": "^18.0.5"
+  }
+}

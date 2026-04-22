@@ -1,0 +1,12 @@
+node_modules/
+__pycache__
+**/__pycache__/
+engines/*/
+data/*
+.env
+*.log
+.DS_Store
+data/
+
+.venv/
+playerbot_backend/bots/retrieval_cache.pkl
