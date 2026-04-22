@@ -20,7 +20,7 @@ class TutorAnalyzer:
             base_url="https://litellm.oit.duke.edu/v1",
         )
 
-    def analyze(self, before_fen: str, after_fen: str, played_move: str) -> str:
+    def analyze(self, before_fen: str, after_fen: str, played_move: str, novice: bool = False) -> str:
         before_board = chess.Board(before_fen)
         after_board  = chess.Board(after_fen)
         mover = before_board.turn
@@ -43,7 +43,7 @@ class TutorAnalyzer:
 
         return self._call_llm(before_fen, played_move, best_move, pv,
                               eval_before, eval_after, delta, classification,
-                              facts, move_facts, legal_sans)
+                              facts, move_facts, legal_sans, novice)
 
     def _classify(self, delta: int) -> str:
         cp_lost = -delta
@@ -135,7 +135,7 @@ class TutorAnalyzer:
 
     def _call_llm(self, before_fen, played_move, best_move, pv,
                   eval_before, eval_after, delta, classification,
-                  facts, move_facts, legal_sans) -> str:
+                  facts, move_facts, legal_sans, novice=False) -> str:
         def fmt(cp):
             return f"{cp / 100:+.2f}"
 
@@ -160,8 +160,12 @@ class TutorAnalyzer:
             "You are a chess coach. You are given verified engine analysis, board facts, and tactical details "
             "computed directly from the position. Do not invent tactical details not present in the data. "
             "When suggesting alternative moves, only recommend moves from the legal moves list provided. "
-            "Explain clearly in 3-5 sentences suitable for a club-level player."
+            "Explain clearly in 3-5 sentences."
         )
+
+        novice_line = (
+            "\nNote: explain this as if teaching a complete beginner — use simple language and define any chess terms you use."
+        ) if novice else ""
 
         user = f"""Position before move (FEN): {before_fen}
 Move played: {played_move} | Classification: {classification.upper()}
@@ -187,7 +191,7 @@ Board facts:
 Legal moves available before the move was played:
   {', '.join(legal_sans)}
 
-Explain the move, why it was {classification}, and what the better plan was."""
+Explain the move, why it was {classification}, and what the better plan was.{novice_line}"""
 
         resp = self.llm.chat.completions.create(
             model="gpt-5.2",
@@ -198,7 +202,10 @@ Explain the move, why it was {classification}, and what the better plan was."""
             temperature=0.4,
             max_tokens=300,
         )
-        return resp.choices[0].message.content.strip()
+        text = resp.choices[0].message.content.strip()
+        text = text.replace("**", "").replace("*", "")
+        print(f"\n[TUTOR] novice={novice}\n{text}\n")
+        return text
 
     def quit(self):
         try:

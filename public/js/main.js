@@ -161,6 +161,21 @@ playerbotToggle.addEventListener("change", async () => {
 
 
 
+// --------------------------- NOVICE TOGGLE ---------------------------
+const noviceToggle = document.getElementById('toggle-novice')
+noviceToggle.addEventListener("change", async () => {
+    await fetch('/api/tutor/novice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ novice: noviceToggle.checked })
+    })
+})
+
+// --------------------------- TUTOR STATUS BADGE (clickable) ---------------------------
+document.getElementById('tutor-status').addEventListener('click', () => {
+    tutorToggle.click()
+})
+
 // --------------------------- TUTOR TOGGLE ---------------------------
 tutorToggle.addEventListener("change", async () => {
     const badge = document.getElementById('tutor-status')

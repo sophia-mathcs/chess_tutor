@@ -11,4 +11,7 @@ router.post('/disable', tutorController.disable)
 // GET /api/tutor/state
 router.get('/state', tutorController.state)
 
+// POST /api/tutor/novice
+router.post('/novice', tutorController.novice)
+
 module.exports = router

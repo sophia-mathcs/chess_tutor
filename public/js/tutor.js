@@ -12,7 +12,7 @@ export function handleTutorUpdate(cmd) {
     const el = document.getElementById('hint-text')
     if (!el) return
     el.classList.remove('tutor-thinking')
-    el.textContent = cmd.explanation ?? 'No explanation available.'
+    el.textContent = cmd.explanation || 'No explanation available.'
 }
 
 export function showTutorThinking() {

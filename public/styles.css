@@ -272,7 +272,7 @@ h1 {
 /* ENGINE PANEL */
 
 .engine-panel {
-  width: 300px;
+  width: 420px;
   display: flex;
   flex-direction: column;
   border-left: 1px solid #333;
@@ -324,8 +324,30 @@ h1 {
   margin-left: 6px;
 }
 
-.tutor-on  { background: #166534; color: #bbf7d0; }
-.tutor-off { background: #374151; color: #9ca3af; }
+.tutor-on  { background: #166534; color: #bbf7d0; cursor: pointer; }
+.tutor-off { background: #374151; color: #9ca3af; cursor: pointer; }
+
+.novice-toggle input[type="checkbox"] {
+  display: none;
+}
+
+.novice-chip {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  vertical-align: middle;
+  margin-left: 6px;
+  cursor: pointer;
+  background: #374151;
+  color: #9ca3af;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.novice-toggle input[type="checkbox"]:checked + .novice-chip {
+  background: #1e3a5f;
+  color: #93c5fd;
+}
 
 #hint-text.tutor-thinking {
   color: #6b7280;

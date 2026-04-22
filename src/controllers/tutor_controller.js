@@ -16,3 +16,9 @@ exports.disable = (req, res) => {
 exports.state = (req, res) => {
   res.json({ ok: true, tutor: tutorService.getState() })
 }
+
+// POST /api/tutor/novice
+exports.novice = (req, res) => {
+  tutorService.setNovice(!!req.body.novice)
+  res.json({ ok: true, tutor: tutorService.getState() })
+}
