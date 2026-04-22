@@ -159,7 +159,25 @@ Yes. In the New Game panel, set the Color selector to "Black" before clicking St
 ---
 
 ### How do I run the system?
-Four processes must run simultaneously, each in its own terminal (Python venv activated):
+The easiest way is to use the included startup scripts, which handle dependency installation, Stockfish resolution, and launching all four services automatically.
+
+**Windows (PowerShell):**
+
+```powershell
+cd chess_tutor
+.\start_all_services.ps1 -ApiKey "your_key_here"
+```
+
+**macOS / Linux (bash):**
+
+```bash
+cd chess_tutor
+DUKE_API_KEY="your_key_here" bash run_system.sh
+```
+
+Both scripts create the Python virtual environment if missing, install all pip and npm dependencies, locate or install Stockfish, and open each service in its own process. Then open `http://localhost:3000`.
+
+To start services manually, run the following in four separate terminals with the Python venv activated:
 
 ```bash
 # Terminal 1 – Frontend server (port 3000)
@@ -178,8 +196,6 @@ uvicorn main:app --port 8001
 cd chess_tutor/tutor_backend
 uvicorn main:app --port 8002
 ```
-
-Then open `http://localhost:3000`. The environment variable `DUKE_API_KEY` must be set before starting the tutor backend.
 
 ---
 
@@ -215,7 +231,7 @@ Then open `http://localhost:3000`. The environment variable `DUKE_API_KEY` must 
 ---
 
 ### Can users play against bots?
-Yes. Toggle the Bot on, then set the ELO in the New Game panel. The bot uses a learned policy to blend Maia and Stockfish for human-like play. Start a new game for the bot to take effect with the chosen settings.
+Yes. Toggle the Bot on, then set the ELO in the New Game panel. The default bot uses a learned policy to blend Maia and Stockfish for human-like play. A second bot type, the Retrieval Bot, selects moves by searching a database of real human games for similar positions and voting across the retrieved moves weighted by ELO proximity and game outcome. Start a new game for the bot settings to take effect.
 
 ---
 
@@ -304,6 +320,10 @@ Wraps Stockfish for continuous position evaluation.
 
 ## 3.5 Playerbot Backend (`playerbot_backend/`, port 8001)
 
+The playerbot backend supports multiple bot types selected at game start. All bot types listen to the SSE stream for position updates and submit moves back to the Node.js server via `POST /api/board/move` with `source: "bot"`. Each bot applies an artificial think delay proportional to its remaining clock time: `delay = clamp(remaining_seconds * 0.03, 0.05s, 2.0s)`. This produces realistic pacing without unpredictable lag.
+
+### Human Bot (Default)
+
 Generates human-like moves using a three-engine blending policy.
 
 **Engines used:**
@@ -313,7 +333,36 @@ Generates human-like moves using a three-engine blending policy.
 
 **Policy:** A learned linear model (`engine_policy_v1.npz`) takes position evaluation (centipawns), position complexity (eval spread across top moves), and player ELO as input, and outputs a softmax probability distribution over the three engines. One engine is sampled per move.
 
-The bot listens to the SSE stream directly (not polled) and submits moves back to the Node.js server via `POST /api/board/move` with `source: "bot"`.
+The model was trained on Lichess broadcast data. For each sampled position, Stockfish evaluated both the played move and the best alternative; positions were classified as blunders (centipawn loss above 200), mistakes (above 50), or fine moves. A 5-input linear layer was trained to predict this classification given position features, producing a policy that picks the blunder engine more often at low skill levels and defers to Stockfish at high skill levels.
+
+### Retrieval Bot
+
+Selects moves by searching a database of real human games for positions similar to the current one, then performing weighted voting across the retrieved moves.
+
+**Board representation:** Each position is encoded as a 785-dimensional vector: 12 piece types x 64 squares (one-hot), active turn, and four castling rights bits. Cosine similarity on these vectors is the basis for approximate nearest-neighbor search.
+
+**Retrieval hierarchy (three levels):**
+
+| Level | Match criterion | ELO window |
+|---|---|---|
+| 1 | Exact FEN | ±100 (relaxes to ±200 if fewer than 5 results) |
+| 2 | Piece placement + turn + castling + en passant | ±100 (relaxes to ±200) |
+| 3 | Cosine similarity on board vector (top 300 candidates) | ±200 |
+
+The first level that returns at least one result is used. This design ensures exact transposition hits are prioritized while still finding reasonable alternatives for novel positions.
+
+**Move scoring:** Candidates from the retrieved games are aggregated by weighted vote:
+
+```
+weight = w_elo * w_similarity * w_win * w_rated
+```
+
+- `w_elo`: exponential decay by ELO distance (`tau = 150`)
+- `w_similarity`: cosine similarity (1.0 for levels 1 and 2)
+- `w_win`: 1.15 if the player won that game, 1.0 otherwise
+- `w_rated`: 1.05 if the game was rated, 1.0 otherwise
+
+Only legal moves receive weight. Scores are normalized to a probability distribution and the top move is played. The top three moves and their probabilities are also returned to the frontend for display.
 
 ---
 
@@ -421,3 +470,38 @@ Toggle and service states are managed in their respective service modules (`tuto
 - Input validation at all API boundaries
 - Engine and LLM services are network-isolated (localhost only)
 - LLM output is stripped of markdown formatting before display
+
+---
+
+## 3.11 Clock and Timing System
+
+### Player Clocks
+
+Clock state is managed in `src/controllers/clock_controller.js`. Each player's remaining time is stored in milliseconds. On every turn switch or state query, elapsed time since the last tick is computed using `Date.now()` and deducted from the active player's total. The server timestamp is included in every clock response so the frontend can synchronize display without clock drift.
+
+Clock state is fetched fresh by the bot on each move decision. This ensures that bot think delays are always calculated against the actual remaining time at the moment the bot is about to move.
+
+### Bot Think Delays
+
+All bot types apply an artificial delay before returning a move to simulate realistic pacing. The delay is computed in `playerbot_backend/bots/base_bot.py`:
+
+```
+delay = clamp(remaining_seconds * 0.03, 0.05s, 2.0s)
+```
+
+This produces delays between 50 milliseconds (nearly instant) and 2 seconds, scaling with how much time the bot has left. A bot with 60 seconds remaining will think for roughly 1.8 seconds; a bot in time pressure will respond in under 100 milliseconds.
+
+### Engine Analysis Loop
+
+The engine backend runs a continuous analysis loop on a daemon thread. When analysis is active, the thread evaluates the current position at increasing depths and sleeps 100 milliseconds between iterations to avoid monopolizing the CPU. Analysis results are cached by FEN so the thread skips re-evaluation if the position has not changed.
+
+Engine updates are pushed to connected clients via SSE. The streaming endpoint in `engine_backend/main.py` polls the latest analysis result and yields it every 150 milliseconds, balancing update freshness against network overhead.
+
+### Summary
+
+| Timing parameter | Value | Location |
+|---|---|---|
+| Bot think delay | 3% of remaining time, 50ms to 2s | `base_bot.py` |
+| Engine analysis loop sleep | 100ms | `engine_backend/engine.py` |
+| SSE engine poll interval | 150ms | `engine_backend/main.py` |
+| Clock resolution | 1ms (Date.now) | `clock_controller.js` |

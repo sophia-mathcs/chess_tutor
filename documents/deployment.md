@@ -11,23 +11,59 @@ The application expects a specific layout. Ensure your project root looks like t
 ```
 Sta 561 Chess/                        ← project root
 │
-├── chess_tutor/                      ← application code
-│   ├── engine_backend/
-│   ├── playerbot_backend/
-│   ├── tutor_backend/
-│   ├── public/
-│   ├── src/
-│   ├── server.js
-│   ├── package.json
-│   └── requirements.txt
-│
-└── engines/                          ← engine binaries (must be one level above chess_tutor/)
-    ├── stockfish/
-    │   └── stockfish-windows-x86-64-avx2.exe
-    └── maia2/                        ← Maia2 model weight files
+└── chess_tutor/                      ← application code
+    ├── engine_backend/
+    ├── playerbot_backend/
+    ├── tutor_backend/
+    ├── public/
+    ├── src/
+    ├── server.js
+    ├── package.json
+    ├── requirements.txt
+    └── engines/                      ← engine binaries (inside chess_tutor/)
+        └── stockfish/
+            └── stockfish-windows-x86-64-avx2.exe
 ```
 
-The Python backends resolve engine paths relative to the project root, so this layout must be exact.
+All engine paths are resolved relative to the `chess_tutor/` directory. The `engines/` folder must be inside `chess_tutor/`, not at the project root.
+
+---
+
+## Quick Start (Recommended)
+
+The repository includes startup scripts that automate Steps 1 through 7 below. If you just want to get the application running, use the appropriate script for your platform.
+
+**Windows (PowerShell):**
+
+```powershell
+cd chess_tutor
+.\run_system.ps1
+```
+
+To pass your LLM API key directly:
+
+```powershell
+.\run_system.ps1 -ApiKey "your_key_here"
+```
+
+**macOS / Linux (bash):**
+
+```bash
+cd chess_tutor
+bash run_system.sh
+```
+
+The script will:
+- Create the Python virtual environment if it does not exist
+- Install all Python and Node.js dependencies
+- Locate or install Stockfish automatically (winget on Windows, Homebrew on macOS)
+- Launch all four services
+
+If Stockfish cannot be installed automatically, the script will print the expected path and exit. Place the binary at `chess_tutor/engines/stockfish/` and re-run.
+
+Set `DUKE_API_KEY` as an environment variable before running if you do not pass it with `-ApiKey`. Toggle states (Engine, Bot, Tutor) will restore automatically on the next browser refresh regardless.
+
+The manual steps below explain the full setup in detail and are useful for understanding the system or troubleshooting.
 
 ---
 
@@ -37,7 +73,7 @@ The Python backends resolve engine paths relative to the project root, so this l
 |---|---|
 | Node.js 18+ | For the frontend server |
 | Python 3.10+ | For all three Python backends |
-| Stockfish (Windows AVX2) | Binary placed at `engines/stockfish/stockfish-windows-x86-64-avx2.exe` |
+| Stockfish (Windows AVX2) | Binary placed at `chess_tutor/engines/stockfish/stockfish-windows-x86-64-avx2.exe` |
 | Maia2 model weights | Files placed in `engines/maia2/` |
 | Duke LiteLLM API access | Required for the tutor backend LLM calls |
 
@@ -45,22 +81,27 @@ The Python backends resolve engine paths relative to the project root, so this l
 
 ## Step 1 — Install Stockfish
 
+The startup scripts will attempt to install Stockfish automatically. If you are setting up manually:
+
 1. Download the Windows AVX2 build from https://stockfishchess.org/download/
 2. Extract the archive
 3. Place `stockfish-windows-x86-64-avx2.exe` at:
    ```
-   Sta 561 Chess/engines/stockfish/stockfish-windows-x86-64-avx2.exe
+   chess_tutor/engines/stockfish/stockfish-windows-x86-64-avx2.exe
    ```
+
+Alternatively, install via winget and it will be found on PATH:
+
+```powershell
+winget install Stockfish.Stockfish
+```
 
 ---
 
 ## Step 2 — Install Maia2 Model Weights
 
 1. Download the Maia2 model weight files (see the Maia2 repository for links)
-2. Place them in:
-   ```
-   Sta 561 Chess/engines/maia2/
-   ```
+2. Place them in the directory expected by the Maia2 inference library (typically a cache folder in your user profile, not inside `chess_tutor/`)
 
 ---
 
@@ -83,10 +124,13 @@ From the `chess_tutor/` directory:
 
 ```bash
 # Create the virtual environment
-python -m venv venv
+python -m venv .venv
 
-# Activate it (Windows)
-venv\Scripts\activate
+# Activate it (Windows PowerShell)
+.venv\Scripts\Activate.ps1
+
+# Activate it (Windows Command Prompt)
+.venv\Scripts\activate.bat
 ```
 
 The venv must be activated in every terminal that runs a Python service.
@@ -98,11 +142,12 @@ The venv must be activated in every terminal that runs a Python service.
 With the venv activated:
 
 ```bash
+pip install --upgrade pip
 pip install -r requirements.txt
-pip install aiohttp numpy maia2
+pip install aiohttp numpy maia2 pandas scikit-learn tqdm gdown pyzstd pyyaml einops torch
 ```
 
-The `requirements.txt` covers `fastapi`, `uvicorn`, `python-chess`, and `openai`. The additional installs cover the playerbot backend (`aiohttp`, `numpy`) and the Maia2 inference engine (`maia2`).
+`requirements.txt` covers `fastapi`, `uvicorn`, `python-chess`, and `openai`. The additional packages support the playerbot backend: `aiohttp` and `numpy` for async move requests, `maia2` for Maia inference, `pandas` and `scikit-learn` for the retrieval model and policy training pipeline, and `torch` as the deep learning runtime. `gdown`, `pyzstd`, `tqdm`, `pyyaml`, and `einops` are supporting utilities used by the Maia2 library.
 
 ---
 
@@ -207,12 +252,14 @@ Once all four services are running, confirm each is working:
 ## Troubleshooting
 
 ### Engine backend fails to start
-- Confirm Stockfish is at `engines/stockfish/stockfish-windows-x86-64-avx2.exe` (one level above `chess_tutor/`)
+- Confirm Stockfish is at `chess_tutor/engines/stockfish/stockfish-windows-x86-64-avx2.exe`
+- Alternatively, confirm `stockfish` is available on PATH (installed via winget or system package manager)
 - Confirm you are running `uvicorn` from inside `chess_tutor/engine_backend/`
 
 ### Playerbot backend fails to start
-- Confirm Stockfish and Maia2 model files are in the correct locations under `engines/`
-- Confirm `maia2`, `aiohttp`, and `numpy` are installed in the active venv
+- Confirm Stockfish is accessible (see above)
+- Confirm Maia2 model weights are downloaded and accessible to the `maia2` library
+- Confirm `maia2`, `aiohttp`, `numpy`, `pandas`, `scikit-learn`, and `torch` are installed in the active venv
 - The bot listens to the Node.js SSE stream — start the frontend server first
 
 ### Tutor returns no explanation or an error

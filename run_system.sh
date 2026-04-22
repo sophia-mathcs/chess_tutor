@@ -4,9 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${ROOT_DIR}/.venv"
 LOG_DIR="${ROOT_DIR}/.run_logs"
-STOCKFISH_BIN="${ROOT_DIR}/../engines/stockfish/stockfish-windows-x86-64-avx2.exe"
-STOCKFISH_BIN_ALT1="${ROOT_DIR}/../engines/stockfish/stockfish"
-STOCKFISH_BIN_ALT2="${ROOT_DIR}/../engines/stockfish/stockfish-macos"
+STOCKFISH_BIN="${ROOT_DIR}/engines/stockfish/stockfish-windows-x86-64-avx2.exe"
+STOCKFISH_BIN_ALT1="${ROOT_DIR}/engines/stockfish/stockfish"
+STOCKFISH_BIN_ALT2="${ROOT_DIR}/engines/stockfish/stockfish-macos"
 
 ENGINE_DIR="${ROOT_DIR}/engine_backend"
 PLAYERBOT_DIR="${ROOT_DIR}/playerbot_backend"
@@ -18,6 +18,7 @@ PLAYERBOT_CMD="uvicorn main:app --port 8001"
 TUTOR_CMD="uvicorn main:app --port 8002"
 
 mkdir -p "${LOG_DIR}"
+mkdir -p "${ROOT_DIR}/engines/stockfish"
 
 echo "==> Project root: ${ROOT_DIR}"
 
@@ -110,7 +111,7 @@ if [ -z "${STOCKFISH_PATH_RESOLVED}" ]; then
   echo "  ${STOCKFISH_BIN_ALT2}"
   echo "  (and PATH: stockfish)"
   echo
-  echo "Install stockfish (e.g. 'brew install stockfish') or place binary under ../engines/stockfish."
+  echo "Install stockfish (e.g. 'brew install stockfish') or place binary under engines/stockfish/."
   exit 1
 fi
 export STOCKFISH_PATH="${STOCKFISH_PATH_RESOLVED}"
