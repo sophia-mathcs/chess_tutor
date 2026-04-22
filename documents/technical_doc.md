@@ -56,6 +56,14 @@ Rule-based systems struggle with generalization and produce rigid feedback. An L
 
 ---
 
+### Won't the LLM halluciante?
+
+---
+
+### How do I get better?
+
+---
+
 ### Why separate Node.js and Python services?
 Node.js is optimized for handling concurrent client requests and API orchestration, while Python provides better support for ML models and engine tooling. This separation ensures each layer operates in its optimal environment.
 

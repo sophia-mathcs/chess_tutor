@@ -19,6 +19,7 @@ class TutorAnalyzer:
             api_key="sk-2ZydGeXgPd_MAmFNHJiVQw",
             base_url="https://litellm.oit.duke.edu/v1",
         )
+        self._conv_messages = []
 
     def analyze(self, before_fen: str, after_fen: str, played_move: str, novice: bool = False) -> str:
         before_board = chess.Board(before_fen)
@@ -160,7 +161,7 @@ class TutorAnalyzer:
             "You are a chess coach. You are given verified engine analysis, board facts, and tactical details "
             "computed directly from the position. Do not invent tactical details not present in the data. "
             "When suggesting alternative moves, only recommend moves from the legal moves list provided. "
-            "Explain clearly in 3-5 sentences."
+            "Explain clearly in 3-5 sentences. Answer in plain prose — no headers, no bullet points, no markdown."
         )
 
         novice_line = (
@@ -193,18 +194,36 @@ Legal moves available before the move was played:
 
 Explain the move, why it was {classification}, and what the better plan was.{novice_line}"""
 
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user",   "content": user},
+        ]
         resp = self.llm.chat.completions.create(
             model="gpt-5.2",
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user",   "content": user},
-            ],
+            messages=messages,
             temperature=0.4,
             max_tokens=300,
         )
         text = resp.choices[0].message.content.strip()
         text = text.replace("**", "").replace("*", "")
-        print(f"\n[TUTOR] novice={novice}\n{text}\n")
+        # print(f"\n[TUTOR] novice={novice}\n{text}\n")
+        self._conv_messages = messages + [{"role": "assistant", "content": text}]
+        return text
+
+    def followup(self, question: str) -> str:
+        if not self._conv_messages:
+            return "No position context available. Please make a move first."
+        messages = self._conv_messages + [{"role": "user", "content": question}]
+        resp = self.llm.chat.completions.create(
+            model="gpt-5.2",
+            messages=messages,
+            temperature=0.4,
+            max_tokens=300,
+        )
+        text = resp.choices[0].message.content.strip()
+        text = text.replace("**", "").replace("*", "")
+        # print(f"\n[TUTOR FOLLOWUP]\n{text}\n")
+        self._conv_messages = messages + [{"role": "assistant", "content": text}]
         return text
 
     def quit(self):

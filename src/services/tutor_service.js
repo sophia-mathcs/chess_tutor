@@ -19,3 +19,6 @@ exports.getState  = () => state
 
 exports.analyze = (before_fen, after_fen, played_move) =>
   post('/analyze', { before_fen, after_fen, played_move, novice: state.novice })
+
+exports.followup = (question) =>
+  post('/followup', { question })

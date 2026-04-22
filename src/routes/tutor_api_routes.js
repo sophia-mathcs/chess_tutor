@@ -14,4 +14,7 @@ router.get('/state', tutorController.state)
 // POST /api/tutor/novice
 router.post('/novice', tutorController.novice)
 
+// POST /api/tutor/followup
+router.post('/followup', tutorController.followup)
+
 module.exports = router

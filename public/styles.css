@@ -381,3 +381,43 @@ h1 {
   color: #6b7280;
   font-style: italic;
 }
+
+.followup-area {
+  margin-top: 12px;
+  display: flex;
+  gap: 6px;
+}
+
+.followup-input {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  background: #1f2937;
+  color: #eee;
+  border: 1px solid #333;
+  border-radius: 4px;
+  outline: none;
+}
+
+.followup-input:focus {
+  border-color: #4b5563;
+}
+
+.followup-btn {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  background: #374151;
+  color: #eee;
+  border: 1px solid #333;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.followup-btn:hover {
+  background: #4b5563;
+}
+
+.followup-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
