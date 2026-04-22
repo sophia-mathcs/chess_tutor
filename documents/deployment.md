@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers everything needed to install and run the Chess Tutor Web App on a local Windows machine.
+This guide covers everything needed to install and run the Chess Tutor Web App on a local Windows or Unix machine.
 
 ---
 
