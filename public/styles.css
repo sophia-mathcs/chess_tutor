@@ -93,6 +93,34 @@ h1 {
   cursor: pointer;
 }
 
+.toggle-control {
+  display: block;
+}
+
+.toggle-control input[type="checkbox"] {
+  display: none;
+}
+
+.toggle-chip {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 6px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: center;
+  background: #374151;
+  color: #9ca3af;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.toggle-control input[type="checkbox"]:checked + .toggle-chip {
+  background: #166534;
+  color: #bbf7d0;
+}
+
+
 .control-btn {
   padding: 5px 5px;
   font-size: 12px;

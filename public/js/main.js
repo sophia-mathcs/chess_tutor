@@ -84,6 +84,15 @@ async function loadInitialState() {
     }
 }
 
+// --------------------------- PERSIST TOGGLE STATE ---------------------------
+function saveToggleState() {
+    localStorage.setItem('toggle_engine', engineToggle.checked)
+    localStorage.setItem('toggle_bot',    playerbotToggle.checked)
+    localStorage.setItem('toggle_tutor',  tutorToggle.checked)
+    localStorage.setItem('toggle_novice', noviceToggle.checked)
+    localStorage.setItem('elo',           elo)
+}
+
 // --------------------------- ENGINE TOGGLE ---------------------------
 // Handler for enabling/disabling the engine
 engineToggle.addEventListener("change", async () => {
@@ -102,7 +111,6 @@ engineToggle.addEventListener("change", async () => {
             body: JSON.stringify({ fen: state.lastBoardStatus.fen })
         });
 
-
         console.log('Engine activated');
 
     } else {
@@ -119,9 +127,9 @@ engineToggle.addEventListener("change", async () => {
         // Stop engine server-side
         await fetch('/api/engine/stop', { method: 'POST' });
 
-
         console.log('Engine deactivated');
     }
+    saveToggleState();
 });
 
 // --------------------------- SELECT ELO ---------------------------
@@ -133,6 +141,7 @@ eloSelect.addEventListener("change", (e) => {
 
   if (!Number.isNaN(val)) {
     elo = val;
+    saveToggleState();
   }
 });
 
@@ -156,6 +165,7 @@ playerbotToggle.addEventListener("change", async () => {
 
         console.log('Playerbot deactivated');
     }
+    saveToggleState();
 });
 
 
@@ -169,6 +179,7 @@ noviceToggle.addEventListener("change", async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ novice: noviceToggle.checked })
     })
+    saveToggleState()
 })
 
 // --------------------------- TUTOR STATUS BADGE (clickable) ---------------------------
@@ -194,6 +205,7 @@ tutorToggle.addEventListener("change", async () => {
         clearTutorPanel()
         console.log('Tutor deactivated')
     }
+    saveToggleState()
 })
 
 
@@ -307,8 +319,64 @@ newGameBtn.addEventListener("click", async () => {
     state.playerColor = color;
 });
 
+// --------------------------- RESTORE TOGGLE STATE ---------------------------
+async function restoreToggleState() {
+    const savedElo = parseInt(localStorage.getItem('elo'), 10)
+    if (!isNaN(savedElo)) {
+        elo = savedElo
+        eloSelect.value = savedElo
+    }
+
+    const noviceOn = localStorage.getItem('toggle_novice') === 'true'
+    if (noviceOn) {
+        noviceToggle.checked = true
+        await fetch('/api/tutor/novice', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ novice: true })
+        })
+    }
+
+    const tutorOn = localStorage.getItem('toggle_tutor') === 'true'
+    if (tutorOn) {
+        tutorToggle.checked = true
+        const badge = document.getElementById('tutor-status')
+        await fetch('/api/tutor/enable', { method: 'POST' })
+        setTutorEnabled(true)
+        badge.textContent = 'On'
+        badge.className = 'tutor-badge tutor-on'
+        document.getElementById('hint-text').textContent = 'Tutor active. Make a move to get feedback.'
+    }
+
+    const engineOn = localStorage.getItem('toggle_engine') === 'true'
+    if (engineOn && state.lastBoardStatus) {
+        engineToggle.checked = true
+        evalBar.classList.remove('hidden')
+        enginePvEl.textContent = 'Analyzing...'
+        engineEvalEl.textContent = '-'
+        engineBestMoveEl.textContent = '-'
+        engineDepthEl.textContent = '-'
+        await fetch('/api/engine/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fen: state.lastBoardStatus.fen })
+        })
+    }
+
+    const botOn = localStorage.getItem('toggle_bot') === 'true'
+    if (botOn) {
+        playerbotToggle.checked = true
+        const color = colorSelect.value === 'white' ? 'b' : 'w'
+        await fetch('/api/playerbot/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bot_color: color, elo: elo })
+        })
+    }
+}
+
 // --------------------------- INITIAL LOAD ---------------------------
 // Load initial state and connect SSE
-loadInitialState();
+loadInitialState().then(() => restoreToggleState());
 resetClock({ color:'white', clockTime: 'No Clock'})
 connect();
