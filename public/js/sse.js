@@ -18,9 +18,13 @@ export function connect() {
             case 'setFen':
                 applyStatus(cmd.status);
                 manageClocks(cmd.status);
+                if (cmd.source !== 'bot') import('./tutor.js').then(t => t.onMoveMade());
             break;
             case 'engineUpdate':
                 handleEngineUpdate(cmd.lines);
+            break;
+            case 'tutorUpdate':
+                import('./tutor.js').then(t => t.handleTutorUpdate(cmd));
             break;
             case 'flip':
                 import('./board.js').then(b => b.flipBoard());

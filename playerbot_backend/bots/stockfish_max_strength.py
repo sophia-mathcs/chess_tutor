@@ -5,9 +5,9 @@ from bots.base_bot import BaseBot
 
 from pathlib import Path
 
-root = Path(__file__).resolve().parent.parent.parent
+root = Path(__file__).resolve().parent.parent.parent.parent
 
-ENGINE_PATH = f"{root}/engines/stockfish/stockfish-macos-m1-apple-silicon"
+ENGINE_PATH = f"{root}/engines/stockfish/stockfish-windows-x86-64-avx2.exe"
 
 class StockfishBot(BaseBot):
 

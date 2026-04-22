@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore")
 
 from pathlib import Path
 
-root = Path(__file__).resolve().parent.parent.parent
+root = Path(__file__).resolve().parent.parent.parent.parent
 
 MAIA_PATH = f"{root}/engines/maia2"
 

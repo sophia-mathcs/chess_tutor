@@ -24,19 +24,23 @@
 
         <div class="menu-controls">
 
-          <label class="control">
+          <label class="toggle-control">
             <input type="checkbox" id="toggle-engine">
-            <span>Engine</span>
+            <span class="toggle-chip">Engine</span>
           </label>
 
-          <div class="control">
+          <label class="toggle-control">
             <input type="checkbox" id="toggle-bot">
-            <span>Bot</span>
-          </div>
+            <span class="toggle-chip">Bot</span>
+          </label>
 
-          <div class="control">
-            <button class="control-btn" id="flip-board-btn"></button>
-            <span>Flip Board</span>
+          <label class="toggle-control">
+            <input type="checkbox" id="toggle-tutor">
+            <span class="toggle-chip">Tutor</span>
+          </label>
+
+          <div class="toggle-control">
+            <div class="toggle-chip" id="flip-board-btn">Flip Board</div>
           </div>
 
         </div>
@@ -111,7 +115,7 @@
           <!-- BOARD ROW -->
           <div class="board-row">
 
-            <div class="eval-bar" id="eval-bar">
+            <div class="eval-bar hidden" id="eval-bar">
               <div class="eval-fill" id="eval-fill"></div>
             </div>
 
@@ -156,9 +160,13 @@
       </div>
 
       <div class="hint-panel">
-        <h3>Hints</h3>
+        <h3>Tutor <span id="tutor-status" class="tutor-badge tutor-off">Off</span><label class="novice-toggle"><input type="checkbox" id="toggle-novice"><span class="novice-chip">Novice Mode</span></label></h3>
         <div id="hint-text">
-          Engine hints will appear here.
+          Enable Tutor to receive move explanations.
+        </div>
+        <div id="followup-area" class="followup-area" style="display:none">
+          <input id="followup-input" type="text" placeholder="Ask about this move..." class="followup-input">
+          <button id="followup-btn" class="followup-btn">Ask</button>
         </div>
       </div>
 

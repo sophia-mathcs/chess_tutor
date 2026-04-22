@@ -22,7 +22,7 @@ async def send_move(move):
 
         await session.post(
             f"{SERVER}/api/board/move",
-            json={"from": orig, "to": dest}
+            json={"from": orig, "to": dest, "source": "bot"}
         )
 
 
