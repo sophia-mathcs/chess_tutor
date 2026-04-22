@@ -33,14 +33,17 @@ class TutorAnalyzer:
         best_move   = info_before["pv"][0].uci() if info_before.get("pv") else "none"
         pv          = [m.uci() for m in info_before.get("pv", [])[:5]]
 
-        # Delta from mover's perspective (negative = cp lost)
         sign = 1 if mover == chess.WHITE else -1
         delta = (eval_after - eval_before) * sign
         classification = self._classify(delta)
 
-        facts = self._board_facts(before_board)
+        facts      = self._board_facts(before_board)
+        move_facts = self._move_facts(before_board, played_move, best_move)
+        legal_sans = self._legal_moves_san(before_board)
+
         return self._call_llm(before_fen, played_move, best_move, pv,
-                              eval_before, eval_after, delta, classification, facts)
+                              eval_before, eval_after, delta, classification,
+                              facts, move_facts, legal_sans)
 
     def _classify(self, delta: int) -> str:
         cp_lost = -delta
@@ -78,14 +81,85 @@ class TutorAnalyzer:
             "black_king_moved": bk != chess.E8,
         }
 
+    def _move_facts(self, before_board: chess.Board, move_uci: str, best_move_uci: str) -> dict:
+        move = chess.Move.from_uci(move_uci)
+        mover = before_board.turn
+        opponent = not mover
+
+        piece = before_board.piece_at(move.from_square)
+        piece_name = chess.piece_name(piece.piece_type) if piece else "unknown"
+
+        captured = before_board.piece_at(move.to_square)
+        capture_name = chess.piece_name(captured.piece_type) if captured else None
+
+        dest_attacked = before_board.is_attacked_by(opponent, move.to_square)
+
+        after_board = before_board.copy()
+        after_board.push(move)
+        gives_check = after_board.is_check()
+
+        en_prise = []
+        for sq, p in after_board.piece_map().items():
+            if p.color == mover:
+                if after_board.is_attacked_by(opponent, sq) and not after_board.is_attacked_by(mover, sq):
+                    en_prise.append(f"{chess.piece_name(p.piece_type)} on {chess.square_name(sq)}")
+
+        best_facts = None
+        if best_move_uci and best_move_uci != "none":
+            bm = chess.Move.from_uci(best_move_uci)
+            bp = before_board.piece_at(bm.from_square)
+            bc = before_board.piece_at(bm.to_square)
+            bb = before_board.copy()
+            bb.push(bm)
+            best_facts = {
+                "piece": chess.piece_name(bp.piece_type) if bp else "unknown",
+                "from": chess.square_name(bm.from_square),
+                "to": chess.square_name(bm.to_square),
+                "captures": chess.piece_name(bc.piece_type) if bc else None,
+                "gives_check": bb.is_check(),
+            }
+
+        return {
+            "piece": piece_name,
+            "from": chess.square_name(move.from_square),
+            "to": chess.square_name(move.to_square),
+            "captures": capture_name,
+            "dest_was_attacked": dest_attacked,
+            "en_prise_after": en_prise,
+            "gives_check": gives_check,
+            "best_move_facts": best_facts,
+        }
+
+    def _legal_moves_san(self, board: chess.Board) -> list[str]:
+        return [board.san(m) for m in board.legal_moves]
+
     def _call_llm(self, before_fen, played_move, best_move, pv,
-                  eval_before, eval_after, delta, classification, facts) -> str:
+                  eval_before, eval_after, delta, classification,
+                  facts, move_facts, legal_sans) -> str:
         def fmt(cp):
             return f"{cp / 100:+.2f}"
 
+        def move_desc(mf):
+            parts = [f"{mf['piece'].capitalize()} {mf['from']}→{mf['to']}"]
+            if mf["captures"]:
+                parts.append(f"captures {mf['captures']}")
+            if mf["gives_check"]:
+                parts.append("gives check")
+            return ", ".join(parts)
+
+        mf = move_facts
+        played_desc = move_desc(mf)
+        if mf["dest_was_attacked"]:
+            played_desc += " [destination was controlled by opponent]"
+
+        en_prise_str = ", ".join(mf["en_prise_after"]) if mf["en_prise_after"] else "none"
+
+        best_desc = move_desc(mf["best_move_facts"]) if mf["best_move_facts"] else best_move
+
         system = (
-            "You are a chess coach. You are given verified engine analysis and board facts. "
-            "Do not invent tactical details not present in the data. "
+            "You are a chess coach. You are given verified engine analysis, board facts, and tactical details "
+            "computed directly from the position. Do not invent tactical details not present in the data. "
+            "When suggesting alternative moves, only recommend moves from the legal moves list provided. "
             "Explain clearly in 3-5 sentences suitable for a club-level player."
         )
 
@@ -99,16 +173,24 @@ Engine analysis:
   Best move instead: {best_move}
   Principal variation: {' '.join(pv) if pv else 'n/a'}
 
+Move details:
+  Played: {played_desc}
+  Pieces left en prise after move: {en_prise_str}
+  Best move: {best_desc}
+
 Board facts:
   Side to move: {facts['turn']} | Phase: {facts['phase']}
   White material: {facts['white_material']} cp | Black material: {facts['black_material']} cp
-  White king: {facts['white_king']} (king has moved: {facts['white_king_moved']})
-  Black king: {facts['black_king']} (king has moved: {facts['black_king_moved']})
+  White king: {facts['white_king']} (has moved: {facts['white_king_moved']})
+  Black king: {facts['black_king']} (has moved: {facts['black_king_moved']})
+
+Legal moves available before the move was played:
+  {', '.join(legal_sans)}
 
 Explain the move, why it was {classification}, and what the better plan was."""
 
         resp = self.llm.chat.completions.create(
-            model="GPT 4.1",
+            model="gpt-5.2",
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user",   "content": user},
