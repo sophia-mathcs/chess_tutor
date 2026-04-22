@@ -44,6 +44,21 @@ From a UX perspective, improvements include richer visualizations (threat maps, 
 
 # 2. FAQ
 
+## General Questions
+
+### How does the system tailor advice to a player's specific skill level rather than just giving GM-level analysis?
+Traditional engines overwhelm novices with deep positional lines. Our system filters the engine's ground-truth evaluation through a grounded LLM pipeline and introduces a "Novice Mode." When enabled, the tutor is explicitly instructed to use beginner-friendly language, define complex chess terminology (like en prise or pins), and focus on immediate tactical realities rather than abstract, long-term positional advantages. This ensures the feedback is actionable for the user's current skill level.
+
+---
+
+### Why use "Imitation Learning" (Maia) instead of just reducing Stockfish's thinking time?
+Depth-limiting a traditional engine like Stockfish does not create a human-like opponent. A depth-limited engine will still spot bizarre, tactically devastating computer moves, but it might randomly blunder a piece in an un-human way. Maia is a neural network trained on millions of real human games via imitation learning. It predicts what a human at a specific ELO would actually play. This creates an opponent that hesitates, attacks, and makes realistic mistakes, providing a much more effective and psychologically realistic training environment.
+
+---
+
+### How do you know this is actually better for learning than a standard engine?
+We predict, based on qualitative and anecdotal feedback from novice and intermediate players comparing our system to a raw Stockfish evaluation bar, that our approach reduces "cognitive overload." When a raw engine drops from +1.0 to -3.0, a novice often cannot identify the 5-move tactic responsible. Our tutor instead explains why the evaluation changes (e.g., "This move is a blunder because it allows the opponent to capture your bishop on c4"). We anticipate that this immediate, conversational feedback makes mistakes more understandable and supports improved board vision in subsequent games.
+
 ## Design Decisions
 
 ### Why combine Stockfish and Maia?
