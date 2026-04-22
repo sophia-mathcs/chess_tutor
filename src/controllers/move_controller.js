@@ -14,7 +14,6 @@ exports.move = (req, res) => {
   }
 
   const game = chessGame.getGame();
-  const beforeFen = game.fen()
 
   if (game.isGameOver()) {
     return res.status(400).json({
@@ -22,6 +21,8 @@ exports.move = (req, res) => {
       status: buildStatus(game),
     });
   }
+
+  const before_fen = game.fen()
 
   const result = chessGame.move(from, to);
 
@@ -33,7 +34,6 @@ exports.move = (req, res) => {
 
   const status = buildStatus(game);
 
-  // If the engine is running, update its position to the new game state
   const fen = status.fen
 
   engineService.setPosition(fen)
@@ -46,26 +46,25 @@ exports.move = (req, res) => {
     type: 'setFen',
     fen: status.fen,
     status,
+    source: req.body.source || 'player',
   });
-
-  // Async tutor analysis should not block move response.
-  const playedMove = `${from}${to}`
-  tutorService.analyze(beforeFen, status.fen, playedMove)
-    .then((result) => {
-      if (result && result.explanation) {
-        sse.broadcast({
-          type: 'tutorHint',
-          explanation: result.explanation
-        })
-      }
-    })
-    .catch((err) => {
-      console.warn('Tutor analyze skipped:', err.message)
-    })
 
   res.json({
     ok: true,
     move: { from, to },
     status,
   });
+
+  if (tutorService.getState().enabled && req.body.source !== 'bot') {
+    const after_fen   = status.fen
+    const played_move = from + to + (result.promotion || '')
+    ;(async () => {
+      try {
+        const data = await tutorService.analyze(before_fen, after_fen, played_move)
+        sse.broadcast({ type: 'tutorUpdate', explanation: data.explanation })
+      } catch (err) {
+        console.error('Tutor analysis failed:', err.message)
+      }
+    })()
+  }
 };

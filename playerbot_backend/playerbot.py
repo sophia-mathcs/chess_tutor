@@ -1,7 +1,13 @@
 import chess
 import asyncio
+import random
 
+from bots.base_bot import BaseBot
+from bots.random_bot import RandomBot
+from bots.stockfish_max_strength import StockfishBot
+# from bots.maia2_bot import MaiaBot
 from bots.human_bot import HumanBot
+from bots.human_bot_trained import HumanBotTrainedPolicy
 
 
 class ChessBot:
@@ -11,15 +17,14 @@ class ChessBot:
         self.elo = elo
         self.position_id = 0
         self.last_fen = None
-        self.engine = HumanBot(elo)
+        self.engine = HumanBotTrainedPolicy(elo)
 
     async def on_fen(self, fen, clock_state, send_move):
-        # SSE may push the same position repeatedly; ignore duplicates so
-        # think delay does not constantly cancel the pending move.
+        # Ignore duplicate positions to prevent double moves
         if fen == self.last_fen:
             return
-
         self.last_fen = fen
+
         self.board = chess.Board(fen)
 
         self.position_id += 1
@@ -27,19 +32,6 @@ class ChessBot:
 
         if not self._my_turn():
             return
-
-        if pid != self.position_id:
-            return
-
-        whiteMs, blackMs, clock_enabled = self._retrieve_times(clock_state)
-        think_seconds = self.engine.estimate_think_time(
-            self.board,
-            whiteMs,
-            blackMs,
-            use_clock=clock_enabled
-        )
-        if think_seconds > 0:
-            await asyncio.sleep(think_seconds)
 
         if pid != self.position_id:
             return
@@ -64,18 +56,16 @@ class ChessBot:
     def _retrieve_times(self, clock):
 
         if not clock:
-            return 0, 0, False
+            return 0, 0
 
         whiteMs = clock.get("white", 0)
         blackMs = clock.get("black", 0)
-        # Treat clock as enabled when server has non-zero configured time.
-        clock_enabled = (whiteMs > 0 or blackMs > 0)
 
-        return whiteMs, blackMs, clock_enabled
+        return whiteMs, blackMs
 
     def compute_move(self, board, clock_state):
 
-        whiteMs, blackMs, _ = self._retrieve_times(clock_state)
+        whiteMs, blackMs = self._retrieve_times(clock_state)
 
         move = self.engine.choose_move(board, whiteMs, blackMs)
 

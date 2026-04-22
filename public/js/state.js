@@ -22,6 +22,4 @@ export const state = {
     clocksFlipped: false,
 
     playerColor: 'white',
-    playerbotEnabled: false,
-    playerbotColor: null,
 }

@@ -22,7 +22,7 @@ async def send_move(move):
 
         await session.post(
             f"{SERVER}/api/board/move",
-            json={"from": orig, "to": dest}
+            json={"from": orig, "to": dest, "source": "bot"}
         )
 
 
@@ -47,8 +47,6 @@ async def fetch_current_fen():
                 return None
 
 
-
-
 RETRY_SECONDS = 5
 
 async def listen_sse():
@@ -60,7 +58,7 @@ async def listen_sse():
             async with aiohttp.ClientSession() as session:
 
                 async with session.get(f"{SERVER}/api/general/stream") as resp:
-                    
+
                     print("caught the stream")
 
                     async for raw in resp.content:
@@ -120,7 +118,7 @@ async def start_bot(req: BotStartRequest):
 
 @app.post("/playerbot/stop")
 async def stop_bot():
-    
+
     print("Bot deactivated")
 
     global bot
@@ -135,10 +133,6 @@ async def startup():
     asyncio.create_task(listen_sse())
 
 
-
-# ==============================
-# Util
-# ==============================
 @app.middleware("http")
 async def log_requests(request, call_next):
     print("Request:", request.method, request.url.path)

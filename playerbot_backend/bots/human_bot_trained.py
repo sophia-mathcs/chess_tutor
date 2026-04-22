@@ -2,52 +2,86 @@ import chess
 import chess.engine
 import numpy as np
 import random
-import math
 import warnings
 
 from bots.base_bot import BaseBot
+from maia2 import model, inference
+
+from train_bot.load_policy import load_policy
+from train_bot.feature_extractor import build_features
 
 warnings.filterwarnings("ignore")
+
+from pathlib import Path
+
+project_root = Path(__file__).resolve().parent.parent.parent   # chess_tutor/
+engines_root = project_root.parent                              # Sta 561 Chess/
 
 
 ############################################
 # Paths
 ############################################
 
-MAIA_PATH = "../engines/maia2"
-STOCKFISH_PATH = "../engines/stockfish/stockfish-windows-x86-64-avx2.exe"
+MAIA_PATH = f"{engines_root}/engines/maia2"
+STOCKFISH_PATH = f"{engines_root}/engines/stockfish/stockfish-windows-x86-64-avx2.exe"
+POLICY_PATH = f"{project_root}/playerbot_backend/models/engine_policy_v1.npz"
 
 
 ############################################
-# Utility functions
+# Utility
 ############################################
 
 def clamp(x, lo, hi):
     return max(lo, min(hi, x))
 
 
-def blunder_prob(elo):
-    return max(0.0, 0.4 / (1 + math.exp((elo - 2000) / 180)))
-
-
-def stockfish_prob(elo):
-    s = 400
-    sig = 1 / (1 + math.exp(-(elo - 1800) / s))
-    return 0.3 + 0.7 * sig
-
-
 def maia_topk(elo):
+
     k = 12 - 10 * (elo / 3000)
+
     return max(2, int(round(k)))
 
 
 def stockfish_topk(elo):
+
     if elo < 1600:
         return 3
+
     elif elo < 2200:
         return 2
-    else:
-        return 1
+
+    return 1
+
+
+def evaluate_position(engine, board):
+
+    info = engine.analyse(
+        board,
+        chess.engine.Limit(time=0.02),
+        multipv=2
+    )
+
+    if not isinstance(info, list):
+        info = [info]
+
+    evals = []
+
+    for entry in info:
+
+        score = entry["score"].white().score(mate_score=10000)
+
+        if score is None:
+            score = 0
+
+        evals.append(score)
+
+    best = evals[0]
+
+    second = evals[1] if len(evals) > 1 else best
+
+    complexity = abs(best - second)
+
+    return best, complexity
 
 
 ############################################
@@ -64,14 +98,17 @@ class MaiaEngine:
         self.elo = clamp(elo, 0, 2000)
 
         if MaiaEngine.shared_model is None:
-            from maia2 import model, inference
+
             print("Loading Maia-2 model...")
+
             MaiaEngine.shared_model = model.from_pretrained(
                 type="rapid",
                 device=device,
                 save_root=MAIA_PATH
             )
+
             MaiaEngine.shared_prepared = inference.prepare()
+
             print("Maia-2 loaded.")
 
         self.model = MaiaEngine.shared_model
@@ -81,7 +118,6 @@ class MaiaEngine:
         self.elo_oppo = self.elo
 
     def sample_move(self, board, topk):
-        from maia2 import inference
 
         fen = board.fen()
 
@@ -148,9 +184,7 @@ class StockfishEngine:
         else:
             my_time = blackMs
 
-        my_time_sec = my_time / 1000.0
-
-        think_time = min(max(my_time_sec * 0.03, 0.05), 2.0)
+        think_time = min(max((my_time / 1000) * 0.03, 0.05), 2.0)
 
         analysis = self.engine.analyse(
             board,
@@ -170,7 +204,7 @@ class StockfishEngine:
 # HumanBot
 ############################################
 
-class HumanBot(BaseBot):
+class HumanBotTrainedPolicy(BaseBot):
 
     def __init__(self, elo):
 
@@ -178,68 +212,37 @@ class HumanBot(BaseBot):
 
         self.elo = elo
 
-        self.maia_blunder = None
-        self.maia_main = None
-        try:
-            self.maia_blunder = MaiaEngine(elo - 300)
-            self.maia_main = MaiaEngine(elo)
-        except Exception as e:
-            print(f"Maia init failed, fallback to stockfish-only mode: {e}")
+        self.maia_blunder = MaiaEngine(elo - 300)
+        self.maia_main = MaiaEngine(elo)
 
         self.stockfish = StockfishEngine(elo)
 
-    def estimate_think_time(self, board, whiteMs, blackMs, use_clock=True):
-        if board.turn == chess.WHITE:
-            my_ms = max(0, int(whiteMs))
-        else:
-            my_ms = max(0, int(blackMs))
-
-        remaining_pieces = len(board.piece_map())
-        piece_factor = clamp((32 - remaining_pieces) / 30.0, 0.0, 1.0)
-        move_factor = clamp(board.ply() / 80.0, 0.0, 1.0)
-        complexity = 0.65 * piece_factor + 0.35 * move_factor
-
-        elo_factor = clamp((self.elo - 800) / 2000.0, 0.0, 1.0)
-
-        if use_clock:
-            time_factor = clamp(my_ms / (5 * 60 * 1000), 0.0, 1.0)
-            seconds = (
-                0.80
-                + 1.40 * elo_factor
-                + 1.60 * complexity
-                + 1.20 * time_factor
-            )
-            max_by_clock = max(1.0, my_ms / 1000.0 * 0.25)
-            return clamp(seconds, 1.0, min(10.0, max_by_clock))
-
-        seconds = (
-            0.80
-            + 1.50 * elo_factor
-            + 1.80 * complexity
-        )
-        return clamp(seconds, 1.0, 8.0)
+        self.policy = load_policy(POLICY_PATH)
 
     def choose_move(self, board, whiteMs, blackMs):
-        if self.maia_blunder is None or self.maia_main is None:
-            return self.stockfish.sample_move(
-                board,
-                stockfish_topk(self.elo),
-                whiteMs,
-                blackMs
-            )
 
-        r1 = random.random()
+        eval_cp, complexity = evaluate_position(
+            self.stockfish.engine,
+            board
+        )
 
-        if r1 < blunder_prob(self.elo):
+        features = build_features(
+            board,
+            self.elo,
+            eval_cp,
+            complexity
+        )
+
+        engine_choice = self.policy.sample(features)
+
+        if engine_choice == "blunder":
 
             return self.maia_blunder.sample_move(
                 board,
                 maia_topk(self.elo)
             )
 
-        r2 = random.random()
-
-        if r2 < stockfish_prob(self.elo):
+        if engine_choice == "stockfish":
 
             return self.stockfish.sample_move(
                 board,

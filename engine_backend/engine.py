@@ -3,7 +3,7 @@ import chess.engine
 import threading
 import time
 
-ENGINE_PATH = "../engines/stockfish/stockfish-macos-m1-apple-silicon"
+ENGINE_PATH = "../../engines/stockfish/stockfish-windows-x86-64-avx2.exe"
 
 class EngineManager:
 
@@ -31,10 +31,6 @@ class EngineManager:
 
         self.thread.start()
 
-    # =================================
-    # Main analysis loop (runs forever)
-    # =================================
-
     def _analysis_loop(self):
 
         while True:
@@ -52,7 +48,6 @@ class EngineManager:
 
                 fen = board.fen()
 
-                # Skip redundant analysis
                 if fen == self.last_fen:
                     time.sleep(0.15)
                     continue
@@ -71,20 +66,17 @@ class EngineManager:
                 new_lines = {}
 
                 for i, line in enumerate(info):
-                    # Extract principal variation moves
                     pv_moves = [m.uci() for m in line.get("pv", [])]
 
-                    # Extract score
                     score_obj = line.get("score")
-                    eval_cp = None   # centipawn evaluation
-                    mate_in = None   # moves to mate
+                    eval_cp = None
+                    mate_in = None
 
                     if score_obj:
-                        if score_obj.white() is not None:  # Use absolute score from White's perspective
+                        if score_obj.white() is not None:
                             eval_cp = score_obj.white().score(mate_score=10000)
                         if score_obj.white().mate is not None:
                             mate_in = score_obj.white().mate()
-
 
                     new_lines[i + 1] = {
                         "multipv": i + 1,
@@ -102,35 +94,18 @@ class EngineManager:
 
             time.sleep(0.1)
 
-    # =================================
-    # Engine control
-    # =================================
-
     def start(self):
-
         self.enabled = True
 
     def stop(self):
-
         self.enabled = False
-
-    # =================================
-    # Position control
-    # =================================
 
     def set_position(self, fen):
 
         with self.lock:
-
             self.board = chess.Board(fen)
-
             self.lines = {}
-
             self.last_fen = None
-
-    # =================================
-    # Engine configuration
-    # =================================
 
     def set_depth(self, depth):
 
@@ -146,10 +121,6 @@ class EngineManager:
             self.engine.configure({"MultiPV": value})
         except Exception as e:
             print("MultiPV config error:", e)
-
-    # =================================
-    # Queries
-    # =================================
 
     def get_updates(self):
 
@@ -168,10 +139,6 @@ class EngineManager:
         )
 
         return result.move.uci()
-
-    # =================================
-    # Shutdown
-    # =================================
 
     def quit(self):
 
