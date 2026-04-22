@@ -270,63 +270,59 @@ newGameBtn.addEventListener("click", async () => {
     state.playerColor = color;
 });
 
-// --------------------------- RESTORE TOGGLE STATE ---------------------------
-async function restoreToggleState() {
-    const savedElo = parseInt(localStorage.getItem('elo'), 10)
-    if (!isNaN(savedElo)) {
-        elo = savedElo
-        eloSelect.value = savedElo
-    }
+// --------------------------- INITIAL LOAD (reset on refresh) ---------------------------
+async function resetSessionOnRefresh() {
+    try {
+        // Reset UI controls to defaults
+        colorSelect.value = 'white';
+        clockSelect.value = '0';
+        eloSelect.value = '800';
+        elo = 800;
 
-    const noviceOn = localStorage.getItem('toggle_novice') === 'true'
-    if (noviceOn) {
-        noviceToggle.checked = true
-        await fetch('/api/tutor/novice', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ novice: true })
-        })
-    }
+        engineToggle.checked = false;
+        playerbotToggle.checked = false;
+        tutorToggle.checked = false;
+        noviceToggle.checked = false;
 
-    const tutorOn = localStorage.getItem('toggle_tutor') === 'true'
-    if (tutorOn) {
-        tutorToggle.checked = true
+        // Reset tutor badge and panel
         const badge = document.getElementById('tutor-status')
-        await fetch('/api/tutor/enable', { method: 'POST' })
-        setTutorEnabled(true)
-        badge.textContent = 'On'
-        badge.className = 'tutor-badge tutor-on'
-        document.getElementById('hint-text').textContent = 'Tutor active. Make a move to get feedback.'
-    }
+        if (badge) { badge.textContent = 'Off'; badge.className = 'tutor-badge tutor-off'; }
+        document.getElementById('hint-text').textContent = 'Enable Tutor to receive move explanations.';
+        document.getElementById('followup-area').style.display = 'none';
+        setTutorEnabled(false);
 
-    const engineOn = localStorage.getItem('toggle_engine') === 'true'
-    if (engineOn && state.lastBoardStatus) {
-        engineToggle.checked = true
-        evalBar.classList.remove('hidden')
-        enginePvEl.textContent = 'Analyzing...'
-        engineEvalEl.textContent = '-'
-        engineBestMoveEl.textContent = '-'
-        engineDepthEl.textContent = '-'
-        await fetch('/api/engine/start', {
+        // Reset engine display
+        evalBar.classList.add('hidden');
+        enginePvEl.textContent = '-';
+        engineEvalEl.textContent = '-';
+        engineBestMoveEl.textContent = '-';
+        engineDepthEl.textContent = '-';
+        updateEvalBar(0);
+
+        // Reset clock UI state
+        state.clockStatus.on = false;
+        state.clockStatus.started = false;
+        state.clockStatus.clockExpired = false;
+        state.ground?.set({ drawable: { autoShapes: [] } });
+
+        // Reset backend services
+        await fetch('/api/playerbot/stop', { method: 'POST' });
+        await fetch('/api/engine/stop', { method: 'POST' });
+        await fetch('/api/tutor/disable', { method: 'POST' });
+        await fetch('/api/board/reset', { method: 'POST' });
+        await fetch('/api/clock/stop', { method: 'POST' });
+        await fetch('/api/clock/reset', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fen: state.lastBoardStatus.fen })
-        })
-    }
+            body: JSON.stringify({ time: 0, startingTurn: 'white' })
+        });
 
-    const botOn = localStorage.getItem('toggle_bot') === 'true'
-    if (botOn) {
-        playerbotToggle.checked = true
-        const color = colorSelect.value === 'white' ? 'b' : 'w'
-        await fetch('/api/playerbot/start', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bot_color: color, elo: elo })
-        })
+    } catch (err) {
+        console.warn('Failed to reset session on refresh', err);
     }
 }
 
-// --------------------------- INITIAL LOAD ---------------------------
-loadInitialState().then(() => restoreToggleState());
-resetClock({ color:'white', clockTime: 'No Clock'})
-connect();
+resetSessionOnRefresh()
+    .then(() => loadInitialState())
+    .then(() => resetClock({ color: 'white', clockTime: 0 }))
+    .finally(() => connect());
