@@ -11,7 +11,11 @@ print("SYS", sys.executable)
 
 warnings.filterwarnings("ignore")
 
-MAIA_PATH = "../engines/maia2"
+from pathlib import Path
+
+root = Path(__file__).resolve().parent.parent.parent
+
+MAIA_PATH = f"{root}/engines/maia2"
 
 class MaiaBot(BaseBot):
     def __init__(self, elo, save_root=MAIA_PATH, device="cpu"):

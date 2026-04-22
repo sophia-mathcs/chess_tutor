@@ -2,7 +2,7 @@ export let boardEl, statusEl;
 export let fenDisplay, evalFill;
 export let engineDepthEl, engineEvalEl, engineBestMoveEl, enginePvEl;
 export let whiteClockEl, blackClockEl;
-export let colorSelect, newGameBtn, clockSelect;
+export let colorSelect, newGameBtn, clockSelect, eloSelect;
 export let engineToggle, playerbotToggle, tutorToggle, flipBtn, evalBar;
 
 export function initDOMRefs() {
@@ -23,6 +23,7 @@ export function initDOMRefs() {
   colorSelect = document.getElementById("color-select");
   newGameBtn = document.getElementById("new-game-btn");
   clockSelect = document.getElementById("clock-select");
+  eloSelect = document.getElementById("elo-select");
 
   engineToggle = document.getElementById("toggle-engine");
   playerbotToggle = document.getElementById("toggle-bot");

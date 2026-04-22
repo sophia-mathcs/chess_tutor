@@ -3,7 +3,11 @@ import chess.engine
 
 from bots.base_bot import BaseBot
 
-ENGINE_PATH = "../engines/stockfish/stockfish-macos-m1-apple-silicon"
+from pathlib import Path
+
+root = Path(__file__).resolve().parent.parent.parent
+
+ENGINE_PATH = f"{root}/engines/stockfish/stockfish-macos-m1-apple-silicon"
 
 class StockfishBot(BaseBot):
 

@@ -7,6 +7,7 @@ from bots.random_bot import RandomBot
 from bots.stockfish_max_strength import StockfishBot
 # from bots.maia2_bot import MaiaBot
 from bots.human_bot import HumanBot
+from bots.human_bot_trained import HumanBotTrainedPolicy
 
 
 class ChessBot:
@@ -15,7 +16,7 @@ class ChessBot:
         self.color = color
         self.elo = elo
         self.position_id = 0
-        self.engine = RandomBot(elo)
+        self.engine = HumanBotTrainedPolicy(elo)
 
     async def on_fen(self, fen, clock_state, send_move):
 
